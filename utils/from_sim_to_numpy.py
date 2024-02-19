@@ -5,9 +5,9 @@ import pynbody #https://pynbody.github.io/pynbody/reference/essentials.html
 from galpy.util import coords as bovy_coords #https://docs.galpy.org/en/v1.6.0/reference/bovycoords.html
 import coordinates
 
-_bar_angle = 27
-_Z0 = coordinates.get_solar_height()
-_R0 = coordinates.get_solar_radius()
+BAR_ANGLE = 27
+Z0 = coordinates.get_solar_height()
+R0 = coordinates.get_solar_radius()
 
 def calculate_bar_angle_from_inertia_tensor(x,y,mass):
     if (len(x) != len(y) or len(x) != len(mass)):
@@ -87,7 +87,7 @@ def flip_Lz(df):
     df.vz = df.vz*(-1)
     df.vy = df.vy*(-1)
 
-def transform_coordinates(df, R0=_R0, Z0=_Z0, GSR=True, rot_angle=_bar_angle):
+def transform_coordinates(df, R0=R0, Z0=Z0, GSR=True, rot_angle=BAR_ANGLE):
 
     v_sun = coordinates.get_solar_velocity(not GSR)
     if GSR: assert v_sun == [0,0,0], "`v_sun` needs to be zero for the simulation as velocities are already in the GSR"
@@ -95,12 +95,12 @@ def transform_coordinates(df, R0=_R0, Z0=_Z0, GSR=True, rot_angle=_bar_angle):
     # Heliocentric rectangular  ---------------------------------------------------------------------------------------------------
     #Transform from rectangular galacto-centric (center of Galaxy is x=y=z=0) to rectangular heliocentric (Sun is x=y=z=0)
     #Xsun and Zsun are the cylindrical distance of the Sun from the GC and its height above the Galatic plane respectively
-    XYZ=bovy_coords.galcenrect_to_XYZ(df.x.values,df.y.values,df.z.values, Xsun=-R0,Zsun=_Z0)
+    XYZ=bovy_coords.galcenrect_to_XYZ(df.x.values,df.y.values,df.z.values, Xsun=-R0,Zsun=Z0)
     df['X'],df['Y'],df['Z'] = XYZ[:,0], XYZ[:,1], XYZ[:,2]
 
     # If galactocentric=True, v_sun will be [0,0,0] and the only thing this will do is perform a tiny rotation to align with astropy's frame definition
     vXYZ=bovy_coords.galcenrect_to_vxvyvz(df.vx.values,df.vy.values,df.vz.values,
-                                        vsun=v_sun,Xsun=-R0,Zsun=_Z0)
+                                        vsun=v_sun,Xsun=-R0,Zsun=Z0)
     df['vX'],df['vY'],df['vZ'] = vXYZ[:,0], vXYZ[:,1], vXYZ[:,2]
 
     # spherical Galactic  --------------------------------------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def axisymmetrise(df):
 
     cyl_to_rec(df)
 
-def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=_R0,Z0=_Z0,angle=27, zabs=True, GSR=True, axisymmetric=False):
+def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0,Z0=Z0,angle=27, zabs=True, GSR=True, axisymmetric=False):
     positions = np.array(sim_stars['pos'].in_units('kpc'))
     velocities = np.array(sim_stars['vel'].in_units('km s**-1'))
     tform = np.array(sim_stars['tform']) #https://pynbody.github.io/pynbody/reference/derived.html
@@ -230,7 +230,7 @@ def load_pynbody_sim(filepath):
 
     return sim
 
-def load_process_and_save(simulation_filepath, save_path, angle_list = [_bar_angle], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48, R0=_R0, Z0=_Z0, zabs = False, GSR = True):
+def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48, R0=R0, Z0=Z0, zabs = False, GSR = True):
     if not os.path.isfile(simulation_filepath):
         raise FileNotFoundError(f"File not found at: `{simulation_filepath}`.")
     if not os.path.isdir(save_path):
