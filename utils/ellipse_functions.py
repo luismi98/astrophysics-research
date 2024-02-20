@@ -11,7 +11,7 @@ def get_vel_ellipse_coords(varx,vary,covxy,ellipse_factor=1):
     radius = ellipse_factor*2*np.sqrt(np.max(eigenvalues))
     ratio = np.sqrt(np.min(eigenvalues)/np.max(eigenvalues))
     tilt = CV.calculate_tilt_from_moments(varx,vary,covxy)
-    x_ellipse, y_ellipse = PH.draw_ellipse(radius, ratio, tilt)
+    x_ellipse, y_ellipse = PH.get_ellipse_coords(radius, ratio, tilt)
     
     return x_ellipse, y_ellipse
 

@@ -107,7 +107,7 @@ def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-4
     radius = 2*np.sqrt(max(eigenvalues)) #radius of 2 sigma, i.e. the 95% confidence level 
     ratio = np.sqrt(min(eigenvalues)/max(eigenvalues))
     centre = [np.mean(vx), np.mean(vy)]
-    x_ellipse, y_ellipse = PH.draw_ellipse(radius, ratio, variables_dict['vertex'])#, centre = centre)
+    x_ellipse, y_ellipse = PH.get_ellipse_coords(radius, ratio, variables_dict['vertex'])#, centre = centre)
     ax.plot(x_ellipse+centre[0], y_ellipse+centre[1], lw=4,color='red')
     eigvectors = np.linalg.eig(cov)[1]
     raw_max_vector = eigvectors[:,eigenvalues.argmax()]

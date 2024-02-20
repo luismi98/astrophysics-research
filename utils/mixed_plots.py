@@ -56,7 +56,7 @@ def illustrate_centered_cmap_usage(vmin,vmax,cmap = None, verbose=False):
     plt.show()
 
 def plot_circle(ax,radius=1,centre=[0,0],phirange=[-180,180],color="k",lw=1.5,label="",linestyle=None):
-    circle = PH.draw_ellipse(centre=centre,radius=radius,phirange=phirange)
+    circle = PH.get_ellipse_coords(centre=centre,radius=radius,phirange=phirange)
     ax.plot(circle[0],circle[1],label=label,color=color,lw=lw,linestyle=linestyle)
 
 def plot_angled_line(ax,xmin,ymin,xmax,angle,degrees=True,color="k",linestyle=None,lw=1):
