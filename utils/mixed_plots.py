@@ -116,7 +116,7 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
 
         return labels_dict
     
-    default_cuts = {"d":[],"l":[],"b":[],"R":[],"y":[],"z":[]}
+    default_cuts = {"l":[],"y":[],"b":[],"z":[],"d":[],"R":[]}
 
     if cuts_dict is None:
         cuts_dict = default_cuts
@@ -168,9 +168,9 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
                 ax_xz.plot([-R0,Rgc_max+0.5],[0,-(R0+Rgc_max+0.5)*np.tan(bmax*np.pi/180)],color="green")
 
         for zmax in cuts_dict["z"]:
-            ax_xz.axhline(zmax,color="red", label=labels_dict["z"] if zmax==cuts_dict["z"][0] else None)
+            ax_xz.axhline(zmax,color="cyan", label=labels_dict["z"] if zmax==cuts_dict["z"][0] else None)
             if not zabs:
-                ax_xz.axhline(-zmax,color="red")
+                ax_xz.axhline(-zmax,color="cyan")
 
         phirange = [0,360] if len(cuts_dict["b"]) == 0 or len(cuts_dict["b"]) > 1 else [-cuts_dict["b"][0],cuts_dict["b"][0]]
         for d in cuts_dict["d"]:
