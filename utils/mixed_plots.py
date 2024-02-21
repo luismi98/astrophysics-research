@@ -70,8 +70,8 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
     Parameters
     ----------
     cuts: dictionary (optional)
-        It can contain any or all of the following keys: {"d","l","b","R"}. The dictionary values are lists. 
-        These symmetrisations will be applied:
+        It can contain any or all of the following keys: {"d","l","b","R","y","l"}. The dictionary values are lists. 
+        The values for the following variables will be assumed to be maxima of symmetric cuts:
             Over the origin: "d"
             Over the x-axis: "l", "y"
             Over the Galactic plane: "b" (if zabs==False).
@@ -97,6 +97,7 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
         symbol_dict,units_dict = mapf.get_position_symbols_and_units_dict(zabs=zabs,degree_symbol='°')
 
         symbol_dict["l"] = r"$|l|$"
+        symbol_dict["y"] = r"$|y|$"
         for k in units_dict:
             if units_dict[k] == "kpc":
                 units_dict[k] = " kpc"
@@ -141,16 +142,16 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
             axs[0].plot([-R0,Rgc_max+0.5],[0,(R0+Rgc_max+0.5)*np.tan(lmax*np.pi/180)],color="red",label=labels_dict["l"] if lmax == cuts_dict["l"][0] else None)
             axs[0].plot([-R0,Rgc_max+0.5],[0,-(R0+Rgc_max+0.5)*np.tan(lmax*np.pi/180)],color="red")
 
+        for ymax in cuts_dict["y"]:
+            axs[0].axhline(ymax,color="purple",label=labels_dict["y"] if ymax==cuts_dict["y"][0] else None)
+            axs[0].axhline(-ymax,color="purple")
+
         phirange = [0,360] if len(cuts_dict["l"]) == 0 or len(cuts_dict["l"]) > 1 else [-cuts_dict["l"][0],cuts_dict["l"][0]]
         for d in cuts_dict["d"]:
             plot_circle(axs[0],radius=d,centre=[-R0,0],phirange=phirange,color="orange",label=labels_dict["d"] if d==cuts_dict["d"][0] else None)
 
         for Rgc in cuts_dict["R"]:
             plot_circle(axs[0],radius=Rgc,lw=1,label=labels_dict["R"] if Rgc==cuts_dict["R"][0] else None)
-
-        for y in cuts_dict["y"]:
-            axs[0].axhline(y,color="red")
-            axs[0].axhline(-y,color="red")
 
         axs[0].set(xlabel=r"$x$ [kpc]",ylabel=r"$y$ [kpc]")
     
@@ -166,10 +167,10 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
             if not zabs:
                 ax_xz.plot([-R0,Rgc_max+0.5],[0,-(R0+Rgc_max+0.5)*np.tan(bmax*np.pi/180)],color="green")
 
-        for z in cuts_dict["z"]:
-            ax_xz.axhline(z,color="red")
+        for zmax in cuts_dict["z"]:
+            ax_xz.axhline(zmax,color="red", label=labels_dict["z"] if zmax==cuts_dict["z"][0] else None)
             if not zabs:
-                ax_xz.axhline(-z,color="red")
+                ax_xz.axhline(-zmax,color="red")
 
         phirange = [0,360] if len(cuts_dict["b"]) == 0 or len(cuts_dict["b"]) > 1 else [-cuts_dict["b"][0],cuts_dict["b"][0]]
         for d in cuts_dict["d"]:
@@ -200,6 +201,11 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
         filename = f"visualise_cuts"
         
         for key,val_list in cuts_dict.items():
+            if projection == "xy" and key not in ["l","y","R","d"]:
+                continue
+            if projection == "xz" and key not in ["z","b","d","R"]:
+                continue
+
             for v in val_list:
                 filename += f"_{key}{MF.return_int_or_dec(v,2)}"
 
@@ -220,7 +226,7 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
     else:
         return filename,cuts_dict
 
-def quick_show_xy(df,xmin=None,xmax=None,ymin=None,ymax=None,bins_x=100,aspect="equal",alpha=1,ax=None,show=False,norm=LogNorm()):
+def quick_show_xy(df,xmin=None,xmax=None,ymin=None,ymax=None,bins_x=100,aspect="equal",alpha=1,ax=None,show=True,norm=LogNorm()):
     """
     Generate mass density counts in of a dataframe in xz space within the given limits. If show==True, show an imshow of it.
     """
