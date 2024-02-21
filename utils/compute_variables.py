@@ -68,8 +68,7 @@ def calculate_spherical_tilt(vx,vy,R_hat,absolute=False):
     clockwise with respect to R_hat, and negative otherwise.
     """ 
     cov = np.cov(vx,vy)
-    varx,vary,covxy = cov[0,0],cov[1,1],cov[0,1]
-    max_vector = EF.get_max_vector(varx,vary,covxy) # Direction of maximum dispersion
+    max_vector = EF.get_max_vector(cov) # Direction of maximum dispersion
     spherical_tilt = calculate_spherical_tilt_helper(R_hat,max_vector)
     return abs(spherical_tilt) if absolute else spherical_tilt
 
@@ -167,51 +166,55 @@ def get_std_bootstrap(function, vx, vy=None, tilt=False, absolute=False, R_hat =
     Computes the standard deviation of a function applied to velocity components 
     using bootstrap resampling.
 
-    Parameters:
-    - vx, vy: array-like
+    Parameters
+    ----------
+    vx, vy: array-like
         Arrays of desired velocity components. vy=None if only 1 is needed.
 
-    - function: callable
+    function: callable
         Function used to compute the desired variable whose error you want to estimate.
 
-    - tilt: bool, optional
+    tilt: bool, optional
         Boolean variable indicating whether the error is being estimated on a tilt 
         (including spherical tilt). Default is False.
 
-    - absolute: bool, optional
+    absolute: bool, optional
         Only has effect if tilt=True. Determines whether the tilt is being computed 
         with absolute value in the denominator or not. Default is False.
 
-    - R_hat: array-like or None, optional
+    R_hat: array-like or None, optional
         Only has effect if tilt=True. If None, the tilt is a vertex deviation, otherwise 
         it is a spherical tilt. Default is None.
 
-    - size_fraction: float, optional
+    size_fraction: float, optional
         Size of bootstrap samples as fraction of original sample. According to 
         https://stats.stackexchange.com/questions/263710, it should be 1. Default is 1.
 
-    - repeat: int, optional
+    repeat: int, optional
         Number of bootstrap samples to take. Default is 100.
 
-    - give_values: bool, optional
+    give_values: bool, optional
         If False, it only returns the estimated error. Otherwise it also returns an array 
         with all bootstrap values. Default is False.
 
-    - show_vel_plots: bool, optional
+    show_vel_plots: bool, optional
         If True, velocity plots are shown. Default is False.
 
-    - show_freq: int, optional
+    show_freq: int, optional
         Frequency of showing velocity plots. Default is 10.
 
-    - velocity_kws: dict, optional
+    velocity_kws: dict, optional
         Keyword arguments for the `velocity_plot` function. Default is an empty dictionary.
 
-    Returns:
-    - std: float
+    Returns
+    -------
+    std: float
         The estimated standard deviation.
 
-    - boot_values: array-like
+    boot_values: array-like
         The bootstrap values. Only returned if `give_values` is True.
+
+    If `gives_values` is True, it returns the tuple (boot_values,std), otherwise just std.
     '''
     
     if R_hat is None:
