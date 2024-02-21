@@ -1,14 +1,55 @@
 import numpy as np
 
-def b_to_z(b,d):
-    return d*np.tan(np.radians(b))
-def z_to_b(z,d):
-    return np.degrees(np.arctan(z/d))
+def ang_to_rect(ang,d=None,x=None):
+    """
+    Transform from "l" to "y", or from "b" to "z".
+    
+    Parameters
+    ----------
+    ang: float
+        The value of an angular variable, "l" or "b", in degrees.
+    d: float, optional
+        Distance from Sun. Must be given if x is None.
+    x: float, optional
+        Heliocentric rectangular coordinate growing in the direction from the Sun (x=0) to the GC (x=R0).
+
+    Returns
+    -------
+    rect: float
+        The rectangular coordinate corresponding to the angular coordinate given.
+    """
+    if (d is None) + (x is None) != 1:
+        raise ValueError("Give a value for `d` or `x` (but not both).")
+    
+    return d*np.sin(np.radians(ang)) if x is None else x*np.tan(np.radians(ang))
+    
+def rect_to_ang(rect,d=None,x=None):
+    """
+    Transform from "y" to "l", or from "b" to "z".
+    
+    Parameters
+    ----------
+    rect: float
+        The value of a rectangular variable, "y" or "z", in degrees.
+    d: float, optional
+        Distance from Sun. Must be given if x is None.
+    x: float, optional
+       Heliocentric rectangular coordinate growing in the direction from the Sun (x=0) to the GC (x=R0)
+
+    Returns
+    -------
+    ang: float
+        The angular coordinate corresponding to the rectangular coordinate given, in degrees.
+    """
+    if (d is None) + (x is None) != 1:
+        raise ValueError("Give a value for `d` or `x` (but not both).")
+
+    return np.degrees(np.sin(rect/d)) if x is None else np.degrees(np.tan(rect/x))
 
 def get_solar_height():
     """
     We know it is not truly 0, see Hawthorn & Gerhard 2016. However, it is small so I am setting it to 0 mainly because I not looked enough into how a non-zero 
-    value affects the Galactic coordinate system (i.e. if we want b=0 to coincide with the true Galactic plane, then it ceases to be centered in the Sun)
+    value affects the Galactic coordinate system (i.e. if we want b=0 to coincide with the true Galactic plane, then it would cease to be centered in the Sun)
     """
     return 0
 
