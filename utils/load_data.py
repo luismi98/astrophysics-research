@@ -81,7 +81,7 @@ def get_dataframe(allStar, spectrophoto, gaiaDR3, error_bool=False):
 
     return data
 
-def load_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observational_data/", error_bool = True, zabs=True, GSR=True):
+def load_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/data/Observational_data/", error_bool = True, zabs=True, GSR=True):
     
     print(f"Working with zabs == {zabs}; GSR == {GSR}.")
     
