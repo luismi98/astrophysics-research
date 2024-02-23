@@ -18,6 +18,7 @@ def set_matplotlib_params():
     plt.rcParams["figure.figsize"] = [12,8]
     plt.rcParams["font.size"] = 13
     plt.rcParams["axes.titlesize"] = "medium"
+    plt.rcParams["legend.fontsize"] = "small"
 
 def reset_rcParams():
     plt.rcParams.update(plt.rcParamsDefault)

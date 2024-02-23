@@ -213,3 +213,39 @@ def apply_cuts_to_df(df,cuts_dict,lims_dict=None):
             raise ValueError(f"`{lims}` is not a valid limit. Use 'neither', 'min', 'max' or 'both'.")
             
     return df
+
+def print_nested_dict_recursive(dictionary):
+    if not isinstance(dictionary,dict):
+        print(dictionary)
+        return
+    
+    for key in dictionary.keys():
+        print(key)
+        print_nested_dict_recursive(dictionary[key])
+
+def print_nested_dict_iterative(nested_dict, all_key_tracks, print_limit=None):
+    print_count = 0
+    
+    for key_track in all_key_tracks:
+        lower_level_dict = nested_dict
+        
+        *keys, last_key = key_track # unpack all but the last key
+        
+        for key in keys:
+            print(key)
+            lower_level_dict = lower_level_dict[key] # we are setting up references to the overall_map_dict elements
+            
+        print(last_key)
+        
+        if isinstance(lower_level_dict[last_key], dict):
+            for final_key in lower_level_dict[last_key]:
+                print(f"'{final_key}':",lower_level_dict[last_key][final_key])
+        else:
+            print(lower_level_dict[last_key])
+    
+        print_count += 1
+        
+        if print_count == print_limit:
+            if print_limit < len(all_key_tracks):
+                print("(...)")
+            return

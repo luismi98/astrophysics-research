@@ -235,12 +235,14 @@ def get_equal_n_minmax_b_ranges(df, n_points=3, extra_variable="R",extra_min=0,e
     n_points_low = n_points-2 if overall_bmax == 13 else n_points-1
     edges_low = get_equal_n_bin_edges(df_extra[df_extra["b"]<=low_max].b.values, n_points_low,verbose=verbose)
 
+    o_b_range_min,o_b_range_max = list(edges_low[:-1]), list(edges_low[1:])
+
     if overall_bmax >= 9: # first cluster
         high_min = np.min(df_extra[df_extra["b"]>6.8]["b"])
         high_max = np.max(df_extra[df_extra["b"]<9]["b"])
 
-        o_b_range_min = list(edges_low[:-1]) + [high_min]
-        o_b_range_max = list(edges_low[1:]) + [high_max]
+        o_b_range_min += [high_min]
+        o_b_range_max += [high_max]
 
     if overall_bmax >= 13: # second cluster
         higher_min = np.min(df_extra[df_extra["b"]>9]["b"])
