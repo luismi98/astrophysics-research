@@ -132,6 +132,7 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
     
     dmin_list = [MF.return_int_or_dec(R0 - (dmax - R0)) for dmax in cuts_dict["d"]]
     cuts_dict["d"] += dmin_list
+    cuts_dict["d"] = sorted(cuts_dict["d"])
 
     Rgc_max = max(cuts_dict["R"]) if len(cuts_dict["R"])>0 else 3.5
 
@@ -226,7 +227,7 @@ def visualise_bulge_selection(cuts_dict=None,given_axs=None,zabs=True,save_bool=
     else:
         return filename,cuts_dict
 
-def quick_show_xy(df,xmin=None,xmax=None,ymin=None,ymax=None,bins_x=100,aspect="equal",alpha=1,ax=None,show=True,norm=LogNorm()):
+def quick_show_xy(df,xmin=None,xmax=None,ymin=None,ymax=None,bins_x=100,aspect="equal",alpha=1,ax=None,show=True,norm=LogNorm(),density=True):
     """
     Generate mass density counts in of a dataframe in xz space within the given limits. If show==True, show an imshow of it.
     """
@@ -240,12 +241,12 @@ def quick_show_xy(df,xmin=None,xmax=None,ymin=None,ymax=None,bins_x=100,aspect="
     if ymax is None:
         ymax = np.max(df["y"])
 
-    bins_y = int(bins_x*ymax/xmax)
+    bins_y = int(bins_x * (ymax-ymin)/(xmax-xmin))
 
-    c,_,_ = np.histogram2d(df["x"],df["y"],bins=[bins_x,bins_y],range=[[-xmax,xmax],[-ymax,ymax]],density=True)
+    c,_,_ = np.histogram2d(df["x"],df["y"],bins=[bins_x,bins_y],range=[[-xmax,xmax],[-ymax,ymax]],density=density)
 
     #Multiply by total number to get a surface density rather than probability density, and by stellar mass to get a mass density
-    c = c.T*len(df)*STELLAR_MASS
+    c = c.T * (len(df)*STELLAR_MASS if density else 1)
 
     if show:
         assert ax is not None, "Show option was set so expected ax to be given."
@@ -257,7 +258,7 @@ def quick_show_xy(df,xmin=None,xmax=None,ymin=None,ymax=None,bins_x=100,aspect="
 
     return c
 
-def quick_show_xz(df,xmin=None,xmax=None,zmin=None,zmax=None,bins_x=100,aspect="equal",alpha=1,ax=None,show=True,norm=LogNorm()):
+def quick_show_xz(df,xmin=None,xmax=None,zmin=None,zmax=None,bins_x=100,aspect="equal",alpha=1,ax=None,show=True,norm=LogNorm(),density=True):
     """
     Generate mass density counts in of a dataframe in xz space within the given limits. If show==True, show an imshow of it.
     """
@@ -271,12 +272,12 @@ def quick_show_xz(df,xmin=None,xmax=None,zmin=None,zmax=None,bins_x=100,aspect="
     if zmax is None:
         zmax = np.max(df["z"])
 
-    bins_z = int((zmax-zmin)/(2*xmax)*bins_x)
+    bins_z = int(bins_x * (zmax-zmin)/(xmax-xmin))
 
-    c,_,_ = np.histogram2d(df["x"],df["z"],bins=[bins_x,bins_z],range=[[-xmax,xmax],[zmin,zmax]],density=True)
+    c,_,_ = np.histogram2d(df["x"],df["z"],bins=[bins_x,bins_z],range=[[-xmax,xmax],[zmin,zmax]],density=density)
 
     #Multiply by total number to get a surface density rather than probability density, and by stellar mass to get a mass density
-    c = c.T*len(df)*STELLAR_MASS
+    c = c.T * (len(df)*STELLAR_MASS if density else 1)
 
     if show:
         assert ax is not None, "Show option was set so expected ax to be given."
