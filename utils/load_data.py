@@ -11,13 +11,26 @@ def select_dr2_variables(allStar, error_bool=False):
     """
     #Read https://data.sdss.org/datamodel/files/APOGEE_ASPCAP/APRED_VERS/ASPCAP_VERS/allStar.html#hdu1
     
-    VHELIO_AVG: "Average solar system barycentric radial velocity, weighted by S/N, using RVs determined from cross-correlation of individual spectra with combined spectrum". Explanation by GPT4:
-    - "Average solar system barycentric radial velocity" - This refers to the average velocity at which an object (e.g., a star, a planet) is moving away from or towards the center of mass of the solar system (the barycenter), when viewed along the line of sight. This is measured in the radial direction (directly away from or towards the observer).
-    - "Weighted by S/N" - This implies that the velocities are averaged in a way that gives more weight to measurements with higher signal-to-noise (S/N) ratios. The signal-to-noise ratio is a measure of the clarity of the signal in the presence of noise. In this context, higher S/N measurements are more reliable, so they get more weight in the average.
-    - "RVs determined from cross-correlation of individual spectra with combined spectrum" - RVs stands for Radial Velocities. The way these velocities are determined is by cross-correlating individual spectra with a combined spectrum. In astronomy, a spectrum (plural: spectra) is the range of colors (including invisible ones) that light from an astronomical object can have. The cross-correlation mentioned here is a measure of similarity between the individual spectrum of an object and a combined or reference spectrum. This comparison can help in determining the radial velocity of the object.
+    VHELIO_AVG: "Average solar system barycentric radial velocity, weighted by S/N, using RVs determined from cross-correlation of individual 
+                spectra with combined spectrum". Explanation by GPT4:
+        "Average solar system barycentric radial velocity"
+            This refers to the average velocity at which an object (e.g., a star, a planet) is moving away from or towards the 
+            center of mass of the solar system (the barycenter), when viewed along the line of sight. This is measured in the radial direction 
+            (directly away from or towards the observer).
+        "Weighted by S/N"
+            This implies that the velocities are averaged in a way that gives more weight to measurements with higher signal-to-noise (S/N) ratios.
+            The signal-to-noise ratio is a measure of the clarity of the signal in the presence of noise.
+            In this context, higher S/N measurements are more reliable, so they get more weight in the average.
+        "RVs determined from cross-correlation of individual spectra with combined spectrum"
+            RVs stands for Radial Velocities. The way these velocities are determined is by cross-correlating individual spectra with a combined spectrum.
+            In astronomy, a spectrum (plural: spectra) is the range of colors (including invisible ones) that light from an astronomical object can have. 
+            The cross-correlation mentioned here is a measure of similarity between the individual spectrum of an object and a combined or reference spectrum.
+            This comparison can help in determining the radial velocity of the object.
     
-    
-    Note to use for example the equatorial proper motion errors, we'd need to convert them to galactic proper motions (and then change the units to velocity). The conversion from equatorial to galactic requires propagation of errors, which would need looking into the bovy equations and taking derivatives. An alternative is to use Monte Carlo to feed the bovy equatorial-to-galactic proper motion conversion values of pmra and pmdec perturbed by the corresponding errors, and compute the standard deviation of the resulting pml and pmbcosb values.
+    Note to use for example the equatorial proper motion errors, we'd need to convert them to galactic proper motions (and then change the 
+    units to velocity). The conversion from equatorial to galactic requires propagation of errors, which would need looking into the bovy 
+    equations and taking derivatives. An alternative is to use Monte Carlo to feed the bovy equatorial-to-galactic proper motion conversion 
+    values of pmra and pmdec perturbed by the corresponding errors, and compute the standard deviation of the resulting pml and pmbcosb values.
     """
     
     # DR2
@@ -81,9 +94,7 @@ def get_dataframe(allStar, spectrophoto, gaiaDR3, error_bool=False):
 
     return data
 
-def load_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/data/Observational_data/", error_bool = True, zabs=True, GSR=True):
-    
-    print(f"Working with zabs == {zabs}; GSR == {GSR}.")
+def load_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/data/Observational_data/", error_bool = True):
     
     allStar = Table.read(data_path+'gaia_DR2/allStar_bulgeSample_ARA2020paper.fits', format='fits',hdu=1)
     spectrophoto = Table.read(data_path+'gaia_DR2/spectroPhotomDists_bulgeSample_ARA2020paper.fits', format='fits')
@@ -209,7 +220,9 @@ def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0):
 def load_and_process_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observational_data/", error_bool = False, zabs=True, 
                           GSR=True, R0=R0, verbose = False):
     
-    data = load_data(data_path=data_path, error_bool=error_bool, zabs=zabs, GSR=GSR)
+    print(f"Working with zabs == {zabs}; GSR == {GSR}.")
+
+    data = load_data(data_path=data_path, error_bool=error_bool)
     
     clean_up_bad_data(data, verbose=verbose)
 
