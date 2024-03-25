@@ -276,3 +276,13 @@ def get_norm_from_count_list(count_list,log=True):
         vmax = max(vmax, np.nanmax(c))
     
     return LogNorm(vmin=vmin,vmax=vmax) if log else plt.Normalize(vmin=vmin,vmax=vmax)
+
+def cbar_extend_list_union(extend_list):
+    if "both" in extend_list or ("min" in extend_list and "max" in extend_list):
+        return "both"
+    if "min" in extend_list:
+        return "min"
+    elif "max" in extend_list:
+        return "max"
+    else:
+        return "neither"

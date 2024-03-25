@@ -73,7 +73,7 @@ def generate_2Dvor(x_values, y_values, min_number_stars, remove_unbound_regions=
     
     target_sn = np.sqrt(min_number_stars)
     
-    _,_,_, x_bar, y_bar, sn, *others = voronoi_2d_binning(
+    _,_,_, x_bar, y_bar, sn, *_ = voronoi_2d_binning(
         x_values, y_values, signal, noise, target_sn, pixelsize=pixelsize, plot=vorbinplot)
     
     x_bar = x_bar[sn >= target_sn]
