@@ -336,7 +336,7 @@ def remove_ticklabel(cax, ticks, which_axis="y",which_tick="bottom"):
     
     cax.set_yticklabels(formatted_labels) if which_axis == "y" else cax.set_xticklabels(formatted_labels)
 
-def remove_overlapping_ticks(cax, next_cax, vminvmax, next_vminvmax, which="both"):
+def remove_overlapping_ticks(cax, next_cax, vminvmax, next_vminvmax, which="both", cbar_frac=15):
     if which not in ["bottom","top","both"]:
         raise ValueError("`which` must be 'bottom', 'top' or 'both'.")
 
@@ -346,7 +346,7 @@ def remove_overlapping_ticks(cax, next_cax, vminvmax, next_vminvmax, which="both
     ticks = get_cbar_ticks(cax, vmin, vmax)
     next_ticks = get_cbar_ticks(next_cax, next_vmin, next_vmax)
     
-    if lowest_tick_is_low(ticks,vmin,vmax) and highest_tick_is_high(next_ticks,next_vmin,next_vmax):
+    if lowest_tick_is_low(ticks,vmin,vmax,frac=cbar_frac) and highest_tick_is_high(next_ticks,next_vmin,next_vmax,frac=cbar_frac):
         if which in ["bottom","both"]:
             remove_ticklabel(cax, ticks, which_tick="bottom")
         if which in ["top","both"]:
