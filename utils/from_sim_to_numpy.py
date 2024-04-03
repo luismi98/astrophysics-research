@@ -13,15 +13,8 @@ def calculate_bar_angle_from_inertia_tensor(x,y,mass):
     if (len(x) != len(y) or len(x) != len(mass)):
         raise ValueError("The length of the star's position and mass arrays did not match.")
     
-    #Restrict the range of R over which we calculate the tensor so we get the bar only
-    I_radius = 4 #708main bar has radius of about 3kpc so choose 4kpc to make sure it is englobed
-    r2 = np.hypot(x, y)
-    x_limited = x[r2 < I_radius]
-    y_limited = y[r2 < I_radius]
-    mass_limited = mass[r2 < I_radius]
-    
     #Calculate the moment of inertia tensor
-    I_xx, I_yy, I_xy = np.sum(mass_limited*y_limited**2), np.sum(mass_limited*x_limited**2), np.sum(mass_limited*-1*x_limited*y_limited)
+    I_xx, I_yy, I_xy = np.sum(mass*y**2), np.sum(mass*x**2), np.sum(mass*-1*x*y)
     I = np.array([[I_xx, I_xy], [I_xy, I_yy]])
     
     #Calculate the eigenvalues and eigenvectors
@@ -36,26 +29,34 @@ def calculate_bar_angle_from_inertia_tensor(x,y,mass):
     return np.degrees(np.arctan2(major_axis[1], major_axis[0]))
 
 def extract_xymass_from_stars(stars):
-    x = np.array(stars['pos'].in_units('kpc'))[:,0]
-    y = np.array(stars['pos'].in_units('kpc'))[:,1]
+    x = np.array(stars['x'].in_units('kpc'))
+    y = np.array(stars['y'].in_units('kpc'))
     mass = np.array(stars['mass'].in_units('Msol'))
 
     return x,y,mass
 
-def align_bar_x_axis(sim):
-    # I do it in-place because I could not create a deep copy that would preserve the given sim, see https://stackoverflow.com/questions/58415397/
+def get_bar_stars(sim, tform_min=3, tform_max=6, zmin=0.2, Rmax=4):
+    """
+    - tform_min and tform_max default to 3 and 6, choosing stars between 4 and 7 years old
+    - zmin defaults to 0.2 to avoid the spheroidal densest region in the plane
+    """
 
-    #Find the current angle working with a cropped section of the simulation where the bar is protagonist
-    tform_min, tform_max = 3,6 # choose stars that between 4 and 7 Gyr old
-    zmin = 0.2 # to avoid the spheroidal densest region in the plane
-    bar_stars = sim.s[(sim.s['tform'] > tform_min) & (sim.s['tform'] < tform_max) & (np.abs(sim.s['z']) > zmin)]
+    return sim.s[
+            (sim.s['tform'] > tform_min)&
+            (sim.s['tform'] < tform_max)&
+            (np.abs(sim.s['z'].in_units("kpc")) > zmin)&
+            (np.hypot(sim.s["x"].in_units("kpc"), sim.s["y"].in_units("kpc")) < Rmax)
+        ]
+
+def compute_bar_angle(sim,I_radius=4):
+
+    bar_stars = get_bar_stars(sim=sim,Rmax=I_radius)
+
+    x_bar, y_bar, mass_bar = extract_xymass_from_stars(bar_stars)
     
-    x,y,mass = extract_xymass_from_stars(bar_stars)
+    maj_axis_angle = calculate_bar_angle_from_inertia_tensor(x_bar,y_bar,mass_bar)
     
-    maj_axis_angle = calculate_bar_angle_from_inertia_tensor(x,y,mass)
-    
-    #Rotate around the z-axis by -maj_axis_angle so that the bar is aligned with the horizontal axis
-    sim.rotate_z(-maj_axis_angle)
+    return maj_axis_angle
 
 def apply_factors(df, position_factor, velocity_factor):
     #scale bar from 3kpc to 5kpc (size of Milky Way's bar)
@@ -230,7 +231,8 @@ def load_pynbody_sim(filepath):
 
     return sim
 
-def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48, R0=R0, Z0=Z0, zabs = False, GSR = True):
+def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48,\
+                           R0=R0, Z0=Z0, zabs = False, GSR = True, I_radius=4, fileprefix="708"):
     if not os.path.isfile(simulation_filepath):
         raise FileNotFoundError(f"File not found at: `{simulation_filepath}`.")
     if not os.path.isdir(save_path):
@@ -239,7 +241,7 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
     sim = load_pynbody_sim(simulation_filepath)
 
     if axisymmetric:
-        df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, zabs=zabs, GSR=GSR, axisymmetric=axisymmetric)
+        df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, Z0=Z0, zabs=zabs, GSR=GSR, axisymmetric=axisymmetric)
 
         # filename
         factor_string = '_scale'+str(pos_factor)
@@ -252,7 +254,8 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
 
         return
 
-    align_bar_x_axis(sim)
+    bar_angle = compute_bar_angle(sim,I_radius=I_radius)
+    sim.rotate_z(-bar_angle) # align with x axis
     
     for angle in angle_list:
         
@@ -265,7 +268,7 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
         zabs_string = '' if zabs else '_noZabs'
         frame_str = '' if GSR else "_LSR"
         
-        filename = f"708MWout_bar{angle}{factor_string}_{R0}R0{zabs_string}{frame_str}"
+        filename = f"{fileprefix}_MWout_bar{angle}{factor_string}_{R0}R0{zabs_string}{frame_str}"
 
         save_as_np(df, save_path=save_path, filename=filename)
 
