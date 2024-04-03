@@ -7,7 +7,7 @@ R0 = coordinates.get_solar_radius()
 
 def load_simulation(path, choice="708main", rot_angle = 27, R0=R0, axisymmetric=False, zabs=True, pos_factor=1.7, GSR=True):
     
-    if choice == "708main":
+    if "708main" in choice:
 
         if not os.path.isdir(path):
             raise FileNotFoundError("Could not find directory:", path)
@@ -19,7 +19,7 @@ def load_simulation(path, choice="708main", rot_angle = 27, R0=R0, axisymmetric=
         axi_string = '_axisymmetric' if axisymmetric else ''    
         R0_string = f'_{R0}R0'
 
-        filename = f"708MWout{bar_string}{scaling_string}{R0_string}{frame_string}{zabs_string}{axi_string}.npy"
+        filename = f"{choice}_MWout{bar_string}{scaling_string}{R0_string}{frame_string}{zabs_string}{axi_string}.npy"
 
         df = pd.DataFrame(np.load(path + filename))
         columns = np.load(path + "columns.npy")
@@ -37,5 +37,7 @@ def load_simulation(path, choice="708main", rot_angle = 27, R0=R0, axisymmetric=
         df.loc[df.l > 180, 'l'] -= 360
     
         print("Stuart's simulation loaded successfully.")
+    else:
+        raise ValueError(f"Loading logic not defined for model `{choice}`")
         
     return df
