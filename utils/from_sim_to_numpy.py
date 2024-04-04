@@ -4,10 +4,11 @@ import os
 import pynbody #https://pynbody.github.io/pynbody/reference/essentials.html
 from galpy.util import coords as bovy_coords #https://docs.galpy.org/en/v1.6.0/reference/bovycoords.html
 import coordinates
+from load_sim import build_filename
 
 BAR_ANGLE = 27
-Z0 = coordinates.get_solar_height()
-R0 = coordinates.get_solar_radius()
+Z0_CONST = coordinates.get_solar_height()
+R0_CONST = coordinates.get_solar_radius()
 
 def calculate_bar_angle_from_inertia_tensor(x,y,mass):
     if (len(x) != len(y) or len(x) != len(mass)):
@@ -88,7 +89,7 @@ def flip_Lz(df):
     df.vz = df.vz*(-1)
     df.vy = df.vy*(-1)
 
-def transform_coordinates(df, R0=R0, Z0=Z0, GSR=True, rot_angle=BAR_ANGLE):
+def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=BAR_ANGLE):
 
     v_sun = coordinates.get_solar_velocity(not GSR)
     if GSR: assert v_sun == [0,0,0], "`v_sun` needs to be zero for the simulation as velocities are already in the GSR"
@@ -178,7 +179,7 @@ def axisymmetrise(df):
 
     cyl_to_rec(df)
 
-def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0,Z0=Z0,angle=27, zabs=True, GSR=True, axisymmetric=False):
+def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0=Z0_CONST,angle=27, zabs=True, GSR=True, axisymmetric=False):
     positions = np.array(sim_stars['pos'].in_units('kpc'))
     velocities = np.array(sim_stars['vel'].in_units('km s**-1'))
     tform = np.array(sim_stars['tform']) #https://pynbody.github.io/pynbody/reference/derived.html
@@ -212,10 +213,10 @@ def save_as_np(df, save_path, filename):
     np.save(save_path + filename, sim_array)
     print("Saved:", save_path+filename)
 
-    np.save(save_path + "columns", column_array)
+    np.save(save_path + filename + "_columns", column_array)
     print("Saved:", save_path+"columns")
 
-    with open(save_path + "columns.txt", 'w') as f:
+    with open(save_path + filename + "_columns.txt", 'w') as f:
         f.write(f"Saved simulation with datatype np.float32.\nThe columns are: {list(column_array)}")
 
 def load_pynbody_sim(filepath):
@@ -232,7 +233,7 @@ def load_pynbody_sim(filepath):
     return sim
 
 def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48,\
-                           R0=R0, Z0=Z0, zabs = False, GSR = True, I_radius=4, fileprefix="708"):
+                           R0=R0_CONST, Z0=Z0_CONST, zabs = False, GSR = True, I_radius=4, choice="708main"):
     if not os.path.isfile(simulation_filepath):
         raise FileNotFoundError(f"File not found at: `{simulation_filepath}`.")
     if not os.path.isdir(save_path):
@@ -243,12 +244,7 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
     if axisymmetric:
         df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, Z0=Z0, zabs=zabs, GSR=GSR, axisymmetric=axisymmetric)
 
-        # filename
-        factor_string = '_scale'+str(pos_factor)
-        zabs_string = '' if zabs else '_noZabs'
-        frame_str = '' if GSR else "_LSR"
-        
-        filename = f"708MWout{factor_string}_{R0}R0{zabs_string}{frame_str}_axisymmetric"
+        filename = build_filename(choice=choice,R0=R0,Z0=Z0,axisymmetric=True,zabs=zabs,pos_factor=pos_factor,GSR=GSR)
 
         save_as_np(df, save_path=save_path, filename=filename)
 
@@ -263,12 +259,7 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
 
         df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, angle=angle, zabs=zabs, GSR=GSR)
 
-        # filename
-        factor_string = '_scale'+str(pos_factor)
-        zabs_string = '' if zabs else '_noZabs'
-        frame_str = '' if GSR else "_LSR"
-        
-        filename = f"{fileprefix}_MWout_bar{angle}{factor_string}_{R0}R0{zabs_string}{frame_str}"
+        filename = build_filename(choice=choice,rot_angle=angle,R0=R0,Z0=Z0,axisymmetric=False,zabs=zabs,pos_factor=pos_factor,GSR=GSR)
 
         save_as_np(df, save_path=save_path, filename=filename)
 
