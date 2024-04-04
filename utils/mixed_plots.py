@@ -524,7 +524,7 @@ def plot_velocity_histograms_both_stats(df,vel_x_variable,vel_y_variable,bins=10
         cax_std.xaxis.tick_top();cax_std.xaxis.set_label_position("top")
         
         cax_std_ticks = mapf.get_cbar_ticks(cax=cax_std,vmin=min_std,vmax=max_std,which_axis="x")
-        mapf.remove_ticklabel(cax=cax_std,ticks=cax_std_ticks,which_axis="x",which_tick="bottom")
+        mapf.remove_ticklabel(ax=cax_std,ticks=cax_std_ticks,which_axis="x",which_tick="bottom")
     
     if True: # save, show
         colour_str = f"_meanstd{colour_var}"
