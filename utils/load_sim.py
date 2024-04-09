@@ -15,14 +15,14 @@ def build_filename(choice="708main",rot_angle=27,R0=R0_CONST,Z0=Z0_CONST,axisymm
     R0_string = f'_{R0}R0'
     Z0_string = f"_{Z0}Z0" if Z0 != Z0_CONST else ''
 
-    return f"{choice}_MWout{bar_string}{scaling_string}{R0_string}{Z0_string}{frame_string}{zabs_string}{axi_string}.npy"
+    return f"{choice}_MWout{bar_string}{scaling_string}{R0_string}{Z0_string}{frame_string}{zabs_string}{axi_string}"
 
 def load_simulation(path, filename):
 
     if not os.path.isdir(path):
         raise FileNotFoundError("Could not find directory:", path)
 
-    df = pd.DataFrame(np.load(path + filename))
+    df = pd.DataFrame(np.load(path + filename + ".npy"))
     columns = np.load(path + filename + "_columns.npy")
 
     if (len(columns) == df.shape[1]):
