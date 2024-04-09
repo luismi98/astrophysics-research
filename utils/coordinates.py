@@ -1,6 +1,7 @@
 import numpy as np
+from galpy.util import coords as bovy_coords
 
-def ang_to_rect(ang,d=None,x=None):
+def ang_to_rect_1D(ang,d=None,x=None):
     """
     Transform from "l" to "y", or from "b" to "z".
     
@@ -23,7 +24,7 @@ def ang_to_rect(ang,d=None,x=None):
     
     return d*np.sin(np.radians(ang)) if x is None else x*np.tan(np.radians(ang))
     
-def rect_to_ang(rect,d=None,x=None):
+def rect_to_ang_1D(rect,d=None,x=None):
     """
     Transform from "y" to "l", or from "b" to "z".
     
@@ -45,6 +46,9 @@ def rect_to_ang(rect,d=None,x=None):
         raise ValueError("Give a value for `d` or `x` (but not both).")
 
     return np.degrees(np.sin(rect/d)) if x is None else np.degrees(np.tan(rect/x))
+
+def get_bar_angle():
+    return 27
 
 def get_solar_height():
     """
@@ -111,7 +115,7 @@ def convert_pm_to_velocity(distance, pm):
     velocity = d_factor * pm_conversion * pm # km/s
     return velocity
 
-def Oscar_radial_velocity_frame_change(velocity, long, lat, degrees = True, change_to_GSR = True):
+def oscar_radial_velocity_frame_change(velocity, long, lat, degrees = True, change_to_GSR = True):
     """
     Oscar's formula to convert radial velocity between LSR and GSR.
     It's referenced in Howard et al. 2008 and Ness et al. 2013
@@ -128,3 +132,111 @@ def Oscar_radial_velocity_frame_change(velocity, long, lat, degrees = True, chan
         return velocity + conversion_shift
     else:
         return velocity - conversion_shift
+    
+########################################################################################################################
+
+def lbd_to_xyz(df, GSR=True, R0=get_solar_radius(), Z0=get_solar_height()):
+    """
+    Here I am assuming if you want velocities in the GSR, you will want Galactocentric positions.
+    This need not be the case though... as Galactic coordinates (and even velocities) for example are Heliocentric even if we're working in the GSR.
+    """
+
+    # Heliocentric
+    XYZ = bovy_coords.lbd_to_XYZ(df['l'],df['b'],df['d'],degree=True)
+
+    if not GSR:
+        df['x'],df['y'],df['z'] = XYZ[:,0],XYZ[:,1],XYZ[:,2]
+        return
+
+    # Galactocentric
+    xyz = bovy_coords.XYZ_to_galcenrect(XYZ[:,0],XYZ[:,1],XYZ[:,2],Xsun=-R0,Zsun=Z0)
+    df['x'],df['y'],df['z'] = xyz[:,0],xyz[:,1],xyz[:,2]
+    
+def xyz_to_Rphiz(df):
+    # Note strangely enough the cylindrical functions return tuples, unlike the others
+
+    o_Rphiz = bovy_coords.rect_to_cyl(df['x'],df['y'],df['z'])
+    df['R'],df['phi'],df['z'] = o_Rphiz[0],np.degrees(o_Rphiz[1]),o_Rphiz[2]  #Note: converting phi to degrees
+
+    #Phi between 0 and 360
+    df.loc[df.phi < 0, 'phi'] += 360
+
+def Rphiz_to_xyz(df):
+    xyz = bovy_coords.cyl_to_rect(df['R'],df['phi'],df['z'])
+    df['x'],df['y'],df['z'] = xyz[0],xyz[1],xyz[2]
+
+def xyz_to_XYZ(df, R0=get_solar_radius(),Z0=get_solar_height()):
+    XYZ=bovy_coords.galcenrect_to_XYZ(df.x.values,df.y.values,df.z.values, Xsun=-R0,Zsun=Z0)
+    df['X'],df['Y'],df['Z'] = XYZ[:,0], XYZ[:,1], XYZ[:,2]
+
+def XYZ_to_lbd(df):
+    lbd=bovy_coords.XYZ_to_lbd(df.X.values,df.Y.values,df.Z.values,degree=True)
+    df['l'],df['b'],df['d'] = lbd[:,0], lbd[:,1], lbd[:,2]
+
+    # Set longitude range from 0,360 to -180,180
+    df.loc[df.l>180, 'l'] -= 360
+
+def lb_to_radec(df):
+    radec=bovy_coords.lb_to_radec(df.l.values,df.b.values,degree=True)
+    df['ra'],df['dec']=radec[:,0],radec[:,1]
+
+########################################################################################################################
+
+def pmrapmdec_to_pmlpmb(df):
+    # Equatorial proper motions to galactic
+    pmbpml = bovy_coords.pmrapmdec_to_pmllpmbb(df['GAIA_PMRA'], df['GAIA_PMDEC'], df['RA'], df['DEC'], degree=True)
+    df['pmlcosb'],df['pmb'] = pmbpml[:,0],pmbpml[:,1]
+
+def pmlpmb_to_pmrapmdec(df):
+    pmradec=bovy_coords.pmllpmbb_to_pmrapmdec(df.pml.values,df.pmb.values,
+                                     df.l.values,df.b.values,degree=True)
+    df['pmra'],df['pmdec']=pmradec[:,0],pmradec[:,1]
+    
+def vrpmlpmb_to_vxvyvz(df, v_sun, R0=get_solar_radius(), Z0=get_solar_height()):
+    """
+    If v_sun is non-zero, the returned rectangular velocities are Galactocentric, otherwise Heliocentric.
+    """
+
+    vXvYvZ = bovy_coords.vrpmllpmbb_to_vxvyvz(df['vr'],df['pmlcosb'],df['pmb'],df['l'],df['b'],df['d'],degree=True)
+
+    # If v_sun is [0,0,0], the following conversion will be useless except that it applies a tiny rotation to align with Astropy's system
+    vxvyvz = bovy_coords.vxvyvz_to_galcenrect(vXvYvZ[:,0],vXvYvZ[:,1],vXvYvZ[:,2], vsun=v_sun,Xsun=-R0,Zsun=Z0)
+    df['vx'],df['vy'],df['vz'] = vxvyvz[:,0],vxvyvz[:,1],vxvyvz[:,2]
+
+def vxvyvz_to_vrpmlpmb(df):
+    vrpmlpmb = bovy_coords.vxvyvz_to_vrpmllpmbb(df["vx"], df["vy"], df["vz"], df["l"], df["b"], df["d"], degree=True)
+    df["vr"], df["pmlcosb"], df["pmb"] = vrpmlpmb[:,0],vrpmlpmb[:,1],vrpmlpmb[:,2]
+
+def vXvYvZ_to_vrpmlpmb(df):
+    #vr in km/s, pmlcosb and pm (proper motion) in mas/yr (milli-arcsecond per year)
+    vrpmlpmb=bovy_coords.vxvyvz_to_vrpmllpmbb(df.vX.values,df.vY.values,df.vZ.values,
+                                        df.l.values,df.b.values,df.d.values,
+                                        degree=True)
+    df['vr'],df['pmlcosb'],df['pmb'] = vrpmlpmb[:,0], vrpmlpmb[:,1], vrpmlpmb[:,2]
+
+def vxvyvz_to_vRvphivz(df):
+    # Note strangely enough the cylindrical functions return tuples, unlike the others
+
+    vRphiz = bovy_coords.rect_to_cyl_vec(df['vx'],df['vy'],df['vz'],df['x'],df['y'],df['z'])
+    df['vR'],df['vphi'],df['vz'] = vRphiz[0],vRphiz[1],vRphiz[2]
+
+def vRvphivz_to_vxvyvz(df):
+    vxvyvz = bovy_coords.cyl_to_rect_vec(df['vR'],df['vphi'],df['vz'],df["phi"])
+    df['vx'],df['vy'],df['vz'] = vxvyvz[0],vxvyvz[1],vxvyvz[2]
+
+def pmlpmb_to_vlvb(df):
+    df['vl'] = convert_pm_to_velocity(df.d.values,df.pmlcosb.values)
+    df['vb'] = convert_pm_to_velocity(df.d.values,df.pmb.values)
+
+def vxvyvz_to_vXvYvZ(df,v_sun,R0=get_solar_radius(),Z0=get_solar_height()):
+    # If v_sun is [0,0,0], the only thing this will do is perform a tiny rotation to align with astropy's frame definition
+    vXYZ=bovy_coords.galcenrect_to_vxvyvz(df.vx.values,df.vy.values,df.vz.values,
+                                        vsun=v_sun,Xsun=-R0,Zsun=Z0)
+    df['vX'],df['vY'],df['vZ'] = vXYZ[:,0], vXYZ[:,1], vXYZ[:,2]
+
+def vxvy_to_vMvm(df,rot_angle=get_bar_angle()):
+    c = np.cos(np.radians(rot_angle))
+    s = np.sin(np.radians(rot_angle))
+
+    df['vM'] = c*df['vx']-s*df['vy'] # semi-major axis
+    df['vm'] = s*df['vx']+c*df['vy'] # semi-minor axis

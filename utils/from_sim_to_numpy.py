@@ -6,7 +6,7 @@ from galpy.util import coords as bovy_coords #https://docs.galpy.org/en/v1.6.0/r
 import coordinates
 from load_sim import build_filename
 
-BAR_ANGLE = 27
+BAR_ANGLE = coordinates.get_bar_angle()
 Z0_CONST = coordinates.get_solar_height()
 R0_CONST = coordinates.get_solar_radius()
 
@@ -91,93 +91,33 @@ def flip_Lz(df):
 
 def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=BAR_ANGLE):
 
-    v_sun = coordinates.get_solar_velocity(not GSR)
+    v_sun = coordinates.get_solar_velocity(changing_reference_frame = not GSR)
     if GSR: assert v_sun == [0,0,0], "`v_sun` needs to be zero for the simulation as velocities are already in the GSR"
 
-    # Heliocentric rectangular  ---------------------------------------------------------------------------------------------------
-    #Transform from rectangular galacto-centric (center of Galaxy is x=y=z=0) to rectangular heliocentric (Sun is x=y=z=0)
-    #Xsun and Zsun are the cylindrical distance of the Sun from the GC and its height above the Galatic plane respectively
-    XYZ=bovy_coords.galcenrect_to_XYZ(df.x.values,df.y.values,df.z.values, Xsun=-R0,Zsun=Z0)
-    df['X'],df['Y'],df['Z'] = XYZ[:,0], XYZ[:,1], XYZ[:,2]
+    coordinates.xyz_to_XYZ(df,R0=R0,Z0=Z0)
+    coordinates.vxvyvz_to_vXvYvZ(df,v_sun=v_sun,R0=R0,Z0=Z0)
 
-    # If galactocentric=True, v_sun will be [0,0,0] and the only thing this will do is perform a tiny rotation to align with astropy's frame definition
-    vXYZ=bovy_coords.galcenrect_to_vxvyvz(df.vx.values,df.vy.values,df.vz.values,
-                                        vsun=v_sun,Xsun=-R0,Zsun=Z0)
-    df['vX'],df['vY'],df['vZ'] = vXYZ[:,0], vXYZ[:,1], vXYZ[:,2]
+    coordinates.XYZ_to_lbd(df)
+    coordinates.vXvYvZ_to_vrpmlpmb(df) # In GSR if GSR=True
 
-    # spherical Galactic  --------------------------------------------------------------------------------------------------------
+    coordinates.pmlpmb_to_vlvb(df)
 
-    # Cart to spherical Galactic Coords https://en.wikipedia.org/wiki/Galactic_coordinate_system
-    #If degree=True, then l=longitude(degrees) b=latitude(degrees) d=distance from GC(kpc)
-    lbd=bovy_coords.XYZ_to_lbd(df.X.values,df.Y.values,df.Z.values,degree=True)
-    df['l'],df['b'],df['d'] = lbd[:,0], lbd[:,1], lbd[:,2]
-
-    # Set longitude range from 0,360 to -180,180
-    df.loc[df.l>180, 'l'] -= 360
-
-    # rectangular to spherical Galactic (heliocentric but in GSR if GSR=True)
-    #vr in km/s, pmlcosb and pm (proper motion) in mas/yr (milli-arcsecond per year)
-    pmlbvr=bovy_coords.vxvyvz_to_vrpmllpmbb(df.vX.values,df.vY.values,df.vZ.values,
-                                        df.l.values,df.b.values,df.d.values,
-                                        degree=True)
-    df['vr'],df['pmlcosb'],df['pmb'] = pmlbvr[:,0], pmlbvr[:,1], pmlbvr[:,2]
-
-    # Convert proper motions to velocities. Requires d in kpc and pm in mas/yr
-    df['vl'] = coordinates.convert_pm_to_velocity(df.d.values, df.pmlcosb.values) # km/s
-    df['vb'] = coordinates.convert_pm_to_velocity(df.d.values, df.pmb.values)
-
-    # Cylindrical  ------------------------------------------------------------------------------------------------------------
-
-    rect_to_cyl(df)
+    coordinates.xyz_to_Rphiz(df)
+    coordinates.vxvyvz_to_vRvphivz(df)
     
-    # Bar frame ----------------------------------------------------------------------------------------------------------------
-
-    c = np.cos(np.radians(rot_angle))
-    s = np.sin(np.radians(rot_angle))
-
-    df['vM'] = c*df['vx']-s*df['vy'] # along semi-major axis
-    df['vm'] = s*df['vx']+c*df['vy'] # along semi-minor axis
-
-    # Equatorial Coords ----------------------------------------------------------------------------------------------------------------
-    # #ra=right ascension, dec=declination, both in degrees if degree=True
-    # radec=bovy_coords.lb_to_radec(df.l.values,df.b.values,degree=True)
-    # df['ra'],df['dec']=radec[:,0],radec[:,1]
-    # del radec
-    # pmradec=bovy_coords.pmllpmbb_to_pmrapmdec(df.pml.values,df.pmb.values,
-    #                                  df.l.values,df.b.values,degree=True)
-    # df['pmra'],df['pmdec']=pmradec[:,0],pmradec[:,1]
-    # del pmradec
-
-def rect_to_cyl(df):
-    # Note strangely enough these functions return tuples, unlike the others
-
-    Rphiz = bovy_coords.rect_to_cyl(df['x'],df['y'],df['z'])
-    df['R'],df['phi'],df['z'] = Rphiz[0],np.degrees(Rphiz[1]),Rphiz[2] #Note: converting phi to degrees
-    
-    #Phi between 0 and 360
-    df.loc[df.phi < 0, 'phi'] += 360
-
-    vRphiz = bovy_coords.rect_to_cyl_vec(df['vx'],df['vy'],df['vz'],df['x'],df['y'],df['z'])
-    df['vR'],df['vphi'],df['vz'] = vRphiz[0],vRphiz[1],vRphiz[2]
-
-def cyl_to_rec(df):
-    # Note strangely enough these functions return tuples, unlike the others
-
-    xyz = bovy_coords.cyl_to_rect(df['R'],df['phi'],df['z'])
-    df['x'],df['y'],df['z'] = xyz[0],xyz[1],xyz[2]
-
-    vxvyvz = bovy_coords.cyl_to_rect_vec(df['vR'],df['vphi'],df['vz'],df["phi"])
-    df['vx'],df['vy'],df['vz'] = vxvyvz[0],vxvyvz[1],vxvyvz[2]
+    coordinates.vxvy_to_vMvm(df,rot_angle=rot_angle)
 
 def axisymmetrise(df):
-    rect_to_cyl(df)
+    coordinates.xyz_to_Rphiz(df)
+    coordinates.vxvyvz_to_vRvphivz(df)
     
     df['phi'] += 360*np.random.random(len(df))
     df.loc[df['phi']>360, 'phi'] -= 360
 
     df.drop(columns = ['x','y','vx','vy'], inplace=True)
 
-    cyl_to_rec(df)
+    coordinates.Rphiz_to_xyz(df)
+    coordinates.vRvphivz_to_vxvyvz(df)
 
 def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0=Z0_CONST,angle=27, zabs=True, GSR=True, axisymmetric=False):
     positions = np.array(sim_stars['pos'].in_units('kpc'))

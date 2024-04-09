@@ -1,11 +1,10 @@
 import numpy as np
 from astropy.table import Table
-from galpy.util import coords as bovy_coords
 import coordinates
 import miscellaneous_functions as MF
 
-Z0 = coordinates.get_solar_height()
-R0 = coordinates.get_solar_radius()
+Z0_CONST = coordinates.get_solar_height()
+R0_CONST = coordinates.get_solar_radius()
 
 def select_dr2_variables(allStar, error_bool=False):
     """
@@ -108,8 +107,6 @@ def load_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/data/Observational_dat
     
     return get_dataframe(allStar, spectrophoto, gaiaDR3, error_bool=error_bool)
 
-########################################################################################################################
-
 def clean_up_bad_data(data, verbose=False):
     # Values not available in dr2 are flagged with values around -9999
     for variable in data.keys():
@@ -133,92 +130,35 @@ def clean_up_bad_data(data, verbose=False):
     data.drop(np.where(to_remove)[0],inplace=True)
     print(f"Removed {np.sum(to_remove)} bad indices, leaving {len(data)} stars.")
 
-########################################################################################################################
-
-def lbd_to_xyz(data, GSR=True, R0=R0):
-    """
-    Here I am assuming if you want velocities in the GSR, you will want Galactocentric positions.
-    This need not be the case though... as Galactic coordinates (and even velocities) for example are Heliocentric even if we're working in the GSR.
-    """
-
-    # Heliocentric
-    XYZ = bovy_coords.lbd_to_XYZ(data['l'],data['b'],data['d'],degree=True)
-
-    if not GSR:
-        data['x'],data['y'],data['z'] = XYZ[:,0],XYZ[:,1],XYZ[:,2]
-        return
-
-    # Galactocentric
-    xyz = bovy_coords.XYZ_to_galcenrect(XYZ[:,0],XYZ[:,1],XYZ[:,2],Xsun=-R0,Zsun=Z0)
-    data['x'],data['y'],data['z'] = xyz[:,0],xyz[:,1],xyz[:,2]
-    
-def xyz_to_Rphiz(data):
-    o_Rphiz = bovy_coords.rect_to_cyl(data['x'],data['y'],data['z'])
-    data['R'],data['phi'],data['z'] = o_Rphiz[0],np.degrees(o_Rphiz[1]),o_Rphiz[2]
-
-########################################################################################################################
-
-def pmrapmdec_to_pmlpmb(data):
-    # Equatorial proper motions to galactic
-    pmbpml = bovy_coords.pmrapmdec_to_pmllpmbb(data['GAIA_PMRA'], data['GAIA_PMDEC'], data['RA'], data['DEC'], degree=True)
-    data['pmlcosb'],data['pmb'] = pmbpml[:,0],pmbpml[:,1]
-    
-def vrpmlpmb_to_vxvyvz(data, GSR=True, R0=R0):
-    """
-    If GSR=True, the returned rectangular velocities are Galactocentric, otherwise Heliocentric.
-    """
-
-    vXvYvZ = bovy_coords.vrpmllpmbb_to_vxvyvz(data['vr'],data['pmlcosb'],data['pmb'],data['l'],data['b'],data['d'],degree=True)
-    
-    v_sun = coordinates.get_solar_velocity(GSR)
-    if GSR: assert v_sun != [0,0,0], "`v_sun` should not be zero, as observed velocities are given from the perspective of the Sun and need to be corrected."
-
-    # If GSR=False, the following conversion will be useless except that it applies a tiny rotation to align with Astropy's system
-    vxvyvz = bovy_coords.vxvyvz_to_galcenrect(vXvYvZ[:,0],vXvYvZ[:,1],vXvYvZ[:,2], vsun=v_sun,Xsun=-R0,Zsun=Z0)
-    data['vx'],data['vy'],data['vz'] = vxvyvz[:,0],vxvyvz[:,1],vxvyvz[:,2]
-
-def vxvyvz_to_vrpmlpmb(data):
-    vrpmlpmb = bovy_coords.vxvyvz_to_vrpmllpmbb(data["vx"], data["vy"], data["vz"], data["l"], data["b"], data["d"], degree=True)
-    data["vr"], data["pmlcosb"], data["pmb"] = vrpmlpmb[:,0],vrpmlpmb[:,1],vrpmlpmb[:,2]
-
-def vxvyvz_to_vRvphivz(data):
-    vRphiz = bovy_coords.rect_to_cyl_vec(data['vx'],data['vy'],data['vz'],data['x'],data['y'],data['z'])
-    data['vR'],data['vphi'],data['vz'] = vRphiz[0],vRphiz[1],vRphiz[2]
-
-def pmlpmb_to_vlvb(data):
-    data['vl'] = coordinates.convert_pm_to_velocity(data.d.values,data.pmlcosb.values)
-    data['vb'] = coordinates.convert_pm_to_velocity(data.d.values,data.pmb.values)
-
-########################################################################################################################
-
-def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0):
+def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0_CONST,Z0=Z0_CONST):
     
     data.loc[data.l > 180, 'l'] -= 360 # Longitude between -180 and 180
 
-    pmrapmdec_to_pmlpmb(data)
+    coordinates.pmrapmdec_to_pmlpmb(data)
 
     # Reflect above plane. Note pmb needs to be first
     if zabs:
         data.loc[data.b < 0, 'pmb'] *= -1
         data.loc[data.b < 0, 'b'] *= -1
 
-    lbd_to_xyz(data, GSR=GSR, R0=R0)
-    xyz_to_Rphiz(data)
+    coordinates.lbd_to_xyz(data, GSR=GSR, R0=R0, Z0=Z0)
+    coordinates.xyz_to_Rphiz(data)
 
     # Phi between 0 and 360
     data.loc[data.phi < 0, 'phi'] += 360
 
-    vrpmlpmb_to_vxvyvz(data,GSR=GSR,R0=R0)
-    vxvyvz_to_vRvphivz(data)
+    v_sun = coordinates.get_solar_velocity(changing_reference_frame=GSR)
+    if GSR: assert v_sun != [0,0,0], "`v_sun` should not be zero, as observed velocities are given from the perspective of the Sun and need to be corrected."
+
+    coordinates.vrpmlpmb_to_vxvyvz(data,v_sun=v_sun,R0=R0,Z0=Z0)
+    coordinates.vxvyvz_to_vRvphivz(data)
 
     if GSR:
-        vxvyvz_to_vrpmlpmb(data)
-    pmlpmb_to_vlvb(data)
-
-########################################################################################################################
+        coordinates.vxvyvz_to_vrpmlpmb(data)
+    coordinates.pmlpmb_to_vlvb(data)
 
 def load_and_process_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observational_data/", error_bool = False, zabs=True, 
-                          GSR=True, R0=R0, verbose = False):
+                          GSR=True, R0=R0_CONST, verbose = False):
     
     print(f"Working with zabs == {zabs}; GSR == {GSR}.")
 
