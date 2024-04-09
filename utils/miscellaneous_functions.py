@@ -249,3 +249,10 @@ def print_nested_dict_iterative(nested_dict, all_key_tracks, print_limit=None):
             if print_limit < len(all_key_tracks):
                 print("(...)")
             return
+        
+def get_anti_diagonal(arr):
+    """
+    Get the ani-diagonal elements of a 2D array
+    """
+    
+    return np.fliplr(arr).diagonal()
