@@ -171,25 +171,23 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
 
 def get_std_MC(df,function,Rmax=3.5,tilt=False, absolute=False, R_hat = None, repeat = 500, show_vel_plots = False, show_freq = 10, velocity_kws={}):
 
-    vr,vl = df["vr"].values, df["vl"].values
-
+    vr,vl,d,d_error = df["vr"].values, df["vl"].values, df["d"].values, df["d_error"].values
+    
     true_value = apply_function(function,vr,vl,R_hat,tilt,absolute)
     
-    pmlcosb = vl/df["d"].values
+    pmlcosb = vl/d
     
     MC_values = np.empty(shape=(repeat))
 
     helper_df = pd.DataFrame(df[["l,b"]])
 
     for i in range(repeat):
-        MC_d = df["d"].values + np.random.normal(scale=df["d_error"].values)
+        MC_d = np.random.normal(loc=d, scale=d_error)
 
         helper_df["d"] = MC_d
         coordinates.lbd_to_xyz(helper_df)
-        coordinates.xyz_to_Rphiz(helper_df)
 
-        within_Rmax = helper_df["R"] <= Rmax
-
+        within_Rmax = np.hypot(helper_df["x"],helper_df["y"]) <= Rmax
         MC_d,pmlcosb,vr = MC_d[within_Rmax],pmlcosb[within_Rmax],vr[within_Rmax]
 
         MC_vl = pmlcosb*MC_d
