@@ -1,7 +1,10 @@
 import numpy as np
-import ellipse_functions as EF
-import velocity_plot
+import pandas as pd
 import matplotlib.pyplot as plt
+
+import ellipse_functions as EF
+from velocity_plot import velocity_plot
+import coordinates
 
 # Note in all the code in this file vx & vy are placeholders for any desired velocity components.
 
@@ -12,8 +15,7 @@ def calculate_covariance(vx,vy):
     return cov[0,1]
 
 def calculate_correlation(vx,vy):
-    cov = np.cov(vx,vy)
-    return cov[0,1]/np.sqrt(cov[0,0]*cov[1,1])
+    return np.corrcoef(vx,vy)[0,1]
 
 def calculate_anisotropy(vx,vy):
     cov = np.cov(vx,vy)
@@ -159,52 +161,96 @@ def visualise_spherical_tilt_calculation(beta_array, phi_vector):
     ax.set_aspect("equal")
     plt.show()
 
-# BOOTSTRAP ERROR ESTIMATION --------------------------------------------------------------------------------
+# ERROR ESTIMATION -------------------------------------------------------------------------------------------
 
-def get_std_bootstrap(function, vx, vy=None, tilt=False, absolute=False, R_hat = None, size_fraction = 1, repeat = 100, give_values = False, show_vel_plots = False, show_freq = 10, velocity_kws={}):   
+def apply_function(function, vx, vy, R_hat, tilt, absolute):
+    if R_hat is None:
+        return function(vx,vy,absolute) if tilt else (function(vx,vy) if vy is not None else function(vx))
+    else:
+        return function(vx,vy,R_hat,absolute=absolute)
+
+def get_std_MC(df,function,Rmax=3.5,tilt=False, absolute=False, R_hat = None, repeat = 500, show_vel_plots = False, show_freq = 10, velocity_kws={}):
+
+    vr,vl = df["vr"].values, df["vl"].values
+
+    true_value = apply_function(function,vr,vl,R_hat,tilt,absolute)
+    
+    pmlcosb = vl/df["d"].values
+    
+    MC_values = np.empty(shape=(repeat))
+
+    helper_df = pd.DataFrame(df[["l,b"]])
+
+    for i in range(repeat):
+        MC_d = df["d"].values + np.random.normal(scale=df["d_error"].values)
+
+        helper_df["d"] = MC_d
+        coordinates.lbd_to_xyz(helper_df)
+        coordinates.xyz_to_Rphiz(helper_df)
+
+        within_Rmax = helper_df["R"] <= Rmax
+
+        MC_d,pmlcosb,vr = MC_d[within_Rmax],pmlcosb[within_Rmax],vr[within_Rmax]
+
+        MC_vl = pmlcosb*MC_d
+
+        if show_vel_plots and i%show_freq == 0:
+            velocity_plot(vr,MC_vl,**velocity_kws)
+
+        MC_values[i] = apply_function(function,vr,MC_vl,R_hat,tilt,absolute)
+    
+    std = np.sqrt(np.mean((MC_values-true_value)**2))
+
+    if tilt and not absolute:
+        MC_values[(true_value - MC_values)>90] += 180
+        MC_values[(true_value - MC_values)<-90] -= 180
+    
+    return std,MC_values
+
+def get_std_bootstrap(function,vx,vy=None,tilt=False,absolute=False,R_hat=None,size_fraction=1,repeat=500,show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
-    Computes the standard deviation of a function applied to velocity components 
-    using bootstrap resampling.
+    Computes the standard deviation of a function applied to velocity components using bootstrap resampling.
 
     Parameters
     ----------
     vx, vy: array-like
-        Arrays of desired velocity components. vy=None if only 1 is needed.
+        Arrays of desired velocity components. 
+        vy=None if only 1 is needed.
 
     function: callable
         Function used to compute the desired variable whose error you want to estimate.
 
     tilt: bool, optional
-        Boolean variable indicating whether the error is being estimated on a tilt 
-        (including spherical tilt). Default is False.
+        Boolean variable indicating whether the error is being estimated on a tilt (including spherical tilt). 
+        Default is False.
 
     absolute: bool, optional
-        Only has effect if tilt=True. Determines whether the tilt is being computed 
-        with absolute value in the denominator or not. Default is False.
+        Only has effect if tilt=True. Determines whether the tilt is being computed with absolute value in the denominator or not. 
+        Default is False.
 
     R_hat: array-like or None, optional
-        Only has effect if tilt=True. If None, the tilt is a vertex deviation, otherwise 
-        it is a spherical tilt. Default is None.
+        Only has effect if tilt=True. If None, the tilt is a vertex deviation, otherwise it is a spherical tilt. 
+        Default is None.
 
     size_fraction: float, optional
-        Size of bootstrap samples as fraction of original sample. According to 
-        https://stats.stackexchange.com/questions/263710, it should be 1. Default is 1.
+        Size of bootstrap samples as fraction of original sample. According to https://stats.stackexchange.com/questions/263710, it should be 1. 
+        Default is 1.
 
     repeat: int, optional
-        Number of bootstrap samples to take. Default is 100.
-
-    give_values: bool, optional
-        If False, it only returns the estimated error. Otherwise it also returns an array 
-        with all bootstrap values. Default is False.
+        Number of bootstrap samples to take. 
+        Default is 100.
 
     show_vel_plots: bool, optional
-        If True, velocity plots are shown. Default is False.
+        If True, velocity plots are shown. 
+        Default is False.
 
     show_freq: int, optional
-        Frequency of showing velocity plots. Default is 10.
+        Frequency of showing velocity plots. 
+        Default is 10.
 
     velocity_kws: dict, optional
-        Keyword arguments for the `velocity_plot` function. Default is an empty dictionary.
+        Keyword arguments for the `velocity_plot` function. 
+        Default is an empty dictionary.
 
     Returns
     -------
@@ -212,52 +258,38 @@ def get_std_bootstrap(function, vx, vy=None, tilt=False, absolute=False, R_hat =
         The estimated standard deviation.
 
     boot_values: array-like
-        The bootstrap values. Only returned if `give_values` is True.
-
-    If `gives_values` is True, it returns the tuple (boot_values,std), otherwise just std.
+        The bootstrap values.
     '''
     
-    if R_hat is None:
-        true_value = function(vx,vy,absolute) if tilt else (function(vx,vy) if vy is not None else function(vx))
-    else:
-        true_value = function(vx,vy,R_hat,absolute=absolute)
-    
+    true_value = apply_function(function,vx,vy,R_hat,tilt,absolute)
+
     original_size = len(vx)
     indices_range = np.arange(original_size)
     
-    boot_values = []
     bootstrap_size = int(size_fraction*original_size)
     
+    boot_values = np.empty(shape=(repeat))
+
     for i in range(repeat):
         bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace=True)
         
         boot_vx = vx[bootstrap_indices]
         
+        boot_vy = None
+
         if vy is not None:
             boot_vy = vy[bootstrap_indices]
         
             if show_vel_plots and i%show_freq == 0:
-                velocity_plot.velocity_plot(boot_vx,boot_vy,**velocity_kws)
-        
-        if R_hat is None:
-            boot_val = function(boot_vx,boot_vy,absolute) if tilt else (function(boot_vx,boot_vy) if vy is not None else function(boot_vx))
-        else:
-            boot_val = function(boot_vx,boot_vy,R_hat,absolute=absolute)
+                velocity_plot(boot_vx,boot_vy,**velocity_kws)
             
-        boot_values.append(boot_val)
-        
-    boot_values = np.array(boot_values)
+        boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
     
     if tilt and not absolute:
         boot_values[(true_value - boot_values)>90] += 180
         boot_values[(true_value - boot_values)<-90] -= 180
     
-    
     #Note this is a pseudo standard deviation: relative to true value as opposed to mean of bootstrap values
     std = np.sqrt(np.nanmean((boot_values-true_value)**2))
     
-    if give_values:
-        return boot_values, std
-    else:
-        return std
-    
+    return std, boot_values
