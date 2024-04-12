@@ -15,6 +15,9 @@ def compute_fractional_errors(map_dict,full_map_string_list):
 
 def get_error(df,function,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat = None, repeat = 500, type="bootstrap", Rmax_MC=3.5):
     if type == "bootstrap":
+        if vel_x_var is None:
+            raise ValueError("vel_x_var cannot be None if computing the bootstrapping error.")
+
         vx = df[vel_x_var].values
         if vel_y_var is not None:
             vy = df[vel_y_var].values
@@ -26,7 +29,7 @@ def get_all_variable_values_and_errors(df,vel_x_var,vel_y_var,full_map_string_li
                                         x_var=None,y_var=None,error_type="bootstrap",Rmax_MC=3.5):
     
     if "spherical_tilt" in full_map_string_list and (x_var is None or y_var is None or R_hat is None):
-        raise ValueError("Cannot compute spherical_tilt without having R_hat and the x and y variables (to extract the velocities)")
+        raise ValueError("Cannot compute spherical_tilt without having R_hat, x_var and y_var.")
     
     vx,vy = df["v"+vel_x_var].values, df["v"+vel_y_var].values
 

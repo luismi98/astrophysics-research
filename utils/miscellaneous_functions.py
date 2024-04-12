@@ -256,3 +256,11 @@ def get_anti_diagonal(arr):
     """
     
     return np.fliplr(arr).diagonal()
+
+def extract_str_from_cuts_dict(cuts_dict):
+    s = ""
+    
+    for k in cuts_dict:
+        s += f"{return_int_or_dec(cuts_dict[k][0],2)}{k}{return_int_or_dec(cuts_dict[k][1],2)}_"
+        
+    return s.strip("_")

@@ -179,23 +179,24 @@ def get_std_MC(df,function,Rmax=3.5,tilt=False, absolute=False, R_hat = None, re
     
     MC_values = np.empty(shape=(repeat))
 
-    helper_df = pd.DataFrame(df[["l,b"]])
+    helper_df = pd.DataFrame(df[["l","b"]])
 
     for i in range(repeat):
-        MC_d = np.random.normal(loc=d, scale=d_error)
+        MC_d = d + np.random.normal(scale=d_error)
 
         helper_df["d"] = MC_d
         coordinates.lbd_to_xyz(helper_df)
 
         within_Rmax = np.hypot(helper_df["x"],helper_df["y"]) <= Rmax
-        MC_d,pmlcosb,vr = MC_d[within_Rmax],pmlcosb[within_Rmax],vr[within_Rmax]
 
-        MC_vl = pmlcosb*MC_d
+        MC_d,MC_pmlcosb,MC_vr = MC_d[within_Rmax],pmlcosb[within_Rmax],vr[within_Rmax]
+
+        MC_vl = MC_pmlcosb*MC_d
 
         if show_vel_plots and i%show_freq == 0:
-            velocity_plot(vr,MC_vl,**velocity_kws)
+            velocity_plot(MC_vr,MC_vl,**velocity_kws)
 
-        MC_values[i] = apply_function(function,vr,MC_vl,R_hat,tilt,absolute)
+        MC_values[i] = apply_function(function,MC_vr,MC_vl,R_hat,tilt,absolute)
     
     std = np.sqrt(np.mean((MC_values-true_value)**2))
 
@@ -203,7 +204,7 @@ def get_std_MC(df,function,Rmax=3.5,tilt=False, absolute=False, R_hat = None, re
         MC_values[(true_value - MC_values)>90] += 180
         MC_values[(true_value - MC_values)<-90] -= 180
     
-    return std,MC_values
+    return std,MC_values,within_Rmax
 
 def get_std_bootstrap(function,vx,vy=None,tilt=False,absolute=False,R_hat=None,size_fraction=1,repeat=500,show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
