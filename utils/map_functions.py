@@ -2,17 +2,20 @@ import numpy as np
 import miscellaneous_functions as MF
 
 def get_map_string_lists(fractional_errors=False):
-    full_map_string_list = ["number","mean_vx","mean_vy","mean_vx_error","mean_vy_error",\
-                            "std_vx","std_vy","std_vx_error","std_vy_error",\
-                            "anisotropy","anisotropy_error",\
-                            "correlation","correlation_error",\
-                            "tilt_abs", "tilt_abs_error", \
-                            "spherical_tilt", "spherical_tilt_error"]
+    full_map_string_list = ["number",\
+                            "mean_vx",          "mean_vx_error_low",        "mean_vx_error_high",\
+                            "mean_vy",          "mean_vy_error_low",        "mean_vy_error_high",\
+                            "std_vx",           "std_vx_error_low",         "std_vx_error_high",\
+                            "std_vy",           "std_vy_error_low",         "std_vy_error_high",\
+                            "anisotropy",       "anisotropy_error_low",     "anisotropy_error_high",\
+                            "correlation",      "correlation_error_low",    "correlation_error_high",\
+                            "tilt_abs",         "tilt_abs_error_low",       "tilt_abs_error_high", \
+                            "spherical_tilt",   "spherical_tilt_error_low", "spherical_tilt_error_high"]
 
     if fractional_errors:
         for map_string in full_map_string_list:
             if "error" in map_string and "fractionalerror" not in map_string:
-                full_map_string_list.append(map_string.split("error")[0] + "fractionalerror")
+                full_map_string_list.append(map_string.split("error")[0] + "fractionalerror" + map_string.split("error")[1])
 
     divergent_map_list = ["mean_vx","mean_vy","anisotropy","correlation","tilt","tilt_abs","spherical_tilt"]
 
@@ -81,7 +84,7 @@ def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable=
     else:
         return kinematic_symbol_dict 
 
-def get_kinematic_units_dict(vel_x_variable="l", vel_y_variable="b", position_variables="lb", degree_symbol = '^\circ'):
+def get_kinematic_units_dict(degree_symbol = '^\circ'):
     """
     Get dictionary for the kinematic variable's units.
 
