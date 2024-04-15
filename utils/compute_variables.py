@@ -178,8 +178,8 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
 
 def apply_MC_distance(df,vr,vl,montecarloconfig):
 
-    if montecarloconfig.affected_var != "d":
-        raise ValueError(f"This is a function to apply a distance MC but the affected_var in montecarloconfig was `{montecarloconfig.affected_var}`.")
+    if montecarloconfig.perturbed_var != "d":
+        raise ValueError(f"This is a function to apply a distance MC but the perturbed_var in montecarloconfig was `{montecarloconfig.perturbed_var}`.")
     if len(montecarloconfig.affected_cuts_dict.keys()) != 1:
         raise ValueError(f"The montecarloconfig must have precisely one single cut stored in its affected_cuts_dict.")
     if "d_error" not in df and montecarloconfig.error_frac is None:
@@ -254,10 +254,10 @@ def get_std_MC(df,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=F
 
     for i in range(repeat):
         
-        if montecarloconfig.affected_var == "d":
+        if montecarloconfig.perturbed_var == "d":
             MC_vx,MC_vy,within_Rmax = apply_MC_distance(df,vx_preMC,vy_preMC,montecarloconfig)
         else:
-            raise ValueError(f"MC behaviour undefined for perturbed variable `{montecarloconfig.affected_var}`.")
+            raise ValueError(f"MC behaviour undefined for perturbed variable `{montecarloconfig.perturbed_var}`.")
 
         if show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
