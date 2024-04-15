@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import ellipse_functions as EF
 from velocity_plot import velocity_plot
 import coordinates
+import miscellaneous_functions as MF
 
 # Note in all the code in this file vx & vy are placeholders for any desired velocity components.
 
@@ -164,49 +165,114 @@ def visualise_spherical_tilt_calculation(beta_array, phi_vector):
 # ERROR ESTIMATION -------------------------------------------------------------------------------------------
 
 def apply_function(function, vx, vy, R_hat, tilt, absolute):
+    if vx is None and vy is None:
+        raise ValueError("At least one of vx and vy must not be None.")
+
     if R_hat is None:
-        return function(vx,vy,absolute) if tilt else (function(vx,vy) if vy is not None else function(vx))
+        if tilt:
+            return function(vx,vy,absolute)
+        else:
+            return function(vx,vy) if vx is not None and vy is not None else function(vx if vx is not None else vy)
     else:
         return function(vx,vy,R_hat,absolute=absolute)
 
-def get_std_MC(df,function,Rmax=3.5,tilt=False, absolute=False, R_hat = None, repeat = 500, show_vel_plots = False, show_freq = 10, velocity_kws={}):
+def apply_MC_distance(df,vr,vl,montecarloconfig):
 
-    vr,vl,d,d_error = df["vr"].values, df["vl"].values, df["d"].values, df["d_error"].values
-    
-    true_value = apply_function(function,vr,vl,R_hat,tilt,absolute)
-    
-    pmlcosb = vl/d
-    
-    MC_values = np.empty(shape=(repeat))
+    if montecarloconfig.affected_var != "d":
+        raise ValueError(f"This is a function to apply a distance MC but the affected_var in montecarloconfig was `{montecarloconfig.affected_var}`.")
+    if len(montecarloconfig.affected_cuts_dict.keys()) != 1:
+        raise ValueError(f"The montecarloconfig must have precisely one single cut stored in its affected_cuts_dict.")
+    if "d_error" not in df and montecarloconfig.error_frac is None:
+        raise ValueError("d_error was not found in the dataframe and montecarloconfig.error_frac is None. Please specify the distance errors.")
+
+    d_error = montecarloconfig.error_frac * df["d"].values
+    if "d_error" in df:
+        if montecarloconfig.error_frac is None:
+            d_error = df["d_error"].values
+        else:
+            print(f"Working with the `{montecarloconfig.error_frac}` fractional distance error as specified in the montecarloconfig, despite d_error existing in the df.")
 
     helper_df = pd.DataFrame(df[["l","b"]])
 
-    for i in range(repeat):
-        MC_d = d + np.random.normal(scale=d_error)
+    MC_d = df["d"].values + np.random.normal(scale=d_error)
+    helper_df["d"] = MC_d
+    coordinates.lbd_to_xyz(helper_df)
 
-        helper_df["d"] = MC_d
-        coordinates.lbd_to_xyz(helper_df)
+    cut_var = list(montecarloconfig.affected_cuts_dict.keys())[0]
 
-        within_Rmax = np.hypot(helper_df["x"],helper_df["y"]) <= Rmax
+    within_cut = MF.build_lessgtr_condition(array=np.hypot(helper_df["x"],helper_df["y"]),\
+                                             min=montecarloconfig.affected_cuts_dict[cut_var][0],\
+                                             max=montecarloconfig.affected_cuts_dict[cut_var][1],\
+                                             type=montecarloconfig.affected_cuts_lims_dict[cut_var])
+    
+    MC_vr, MC_vl = None, None
 
-        MC_d,MC_pmlcosb,MC_vr = MC_d[within_Rmax],pmlcosb[within_Rmax],vr[within_Rmax]
+    if vr is not None:
+        MC_vr = vr[within_cut]
+    if vl is not None:
+        pmlcosb = vl / df["d"].values
 
+        MC_d,MC_pmlcosb = MC_d[within_cut],pmlcosb[within_cut]
         MC_vl = MC_pmlcosb*MC_d
 
-        if show_vel_plots and i%show_freq == 0:
-            velocity_plot(MC_vr,MC_vl,**velocity_kws)
+    return MC_vr, MC_vl,within_cut
 
-        MC_values[i] = apply_function(function,MC_vr,MC_vl,R_hat,tilt,absolute)
+def compute_lowhigh_std(true_value, perturbed_values):
+    values_above = perturbed_values[perturbed_values > true_value]
+    values_below = perturbed_values[perturbed_values < true_value]
+    values_equal = perturbed_values[perturbed_values == true_value]
+
+    # divide perturbed values which result equal to the true value proportionally between the above and below values
+    frac_equal_to_above = len(values_above) / (len(values_above) + len(values_below))
+    idx_equal_to_above = int( len(values_equal) * frac_equal_to_above )
+
+    values_above = np.append(values_above, values_equal[:idx_equal_to_above])
+    values_below = np.append(values_below, values_equal[idx_equal_to_above:])
+
+    std_low = np.sqrt(np.mean((values_below - true_value)**2))
+    std_high = np.sqrt(np.mean((values_above - true_value)**2))
+
+    return std_low,std_high
+
+def get_std_MC(df,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat = None, repeat = 500, show_vel_plots = False, show_freq = 10, velocity_kws={}):
+
+    if vel_x_var is None and vel_y_var is None:
+        raise ValueError("Both velocity components were set to None!")
+    if montecarloconfig is None:
+        raise ValueError("montecarloconfig cannot be None when estimating MC uncertainties.")
+
+    df_true_vals = MF.apply_cuts_to_df(df, cuts_dict=montecarloconfig.affected_cuts_dict, lims_dict=montecarloconfig.affected_cuts_lims_dict)
+    vx_true = df_true_vals["v"+vel_x_var].values if vel_x_var is not None else None
+    vy_true = df_true_vals["v"+vel_y_var].values if vel_y_var is not None else None
     
-    std = np.sqrt(np.mean((MC_values-true_value)**2))
+    true_value = apply_function(function,vx_true,vy_true,R_hat,tilt,absolute)
+
+    vx_preMC = df["v"+vel_x_var].values if vel_x_var is not None else None
+    vy_preMC = df["v"+vel_y_var].values if vel_y_var is not None else None
+    
+    MC_values = np.empty(shape=(repeat))
+
+    for i in range(repeat):
+        
+        if montecarloconfig.affected_var == "d":
+            MC_vx,MC_vy,within_Rmax = apply_MC_distance(df,vx_preMC,vy_preMC,montecarloconfig)
+        else:
+            raise ValueError(f"MC behaviour undefined for perturbed variable `{montecarloconfig.affected_var}`.")
+
+        if show_vel_plots and i%show_freq == 0:
+            velocity_plot(MC_vx,MC_vy,**velocity_kws)
+
+        MC_values[i] = apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
 
     if tilt and not absolute:
         MC_values[(true_value - MC_values)>90] += 180
         MC_values[(true_value - MC_values)<-90] -= 180
-    
-    return std,MC_values,within_Rmax
 
-def get_std_bootstrap(function,vx,vy=None,tilt=False,absolute=False,R_hat=None,size_fraction=1,repeat=500,show_vel_plots=False,show_freq=10,velocity_kws={}):
+    std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=MC_values)
+    
+    return std_low,std_high,MC_values,within_Rmax
+
+def get_std_bootstrap(function,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,size_fraction=1,repeat=500,show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
     Computes the standard deviation of a function applied to velocity components using bootstrap resampling.
 
@@ -260,11 +326,13 @@ def get_std_bootstrap(function,vx,vy=None,tilt=False,absolute=False,R_hat=None,s
         The bootstrap values.
     '''
     
+    if vx is None and vy is None:
+        raise ValueError("At least one of vx and vy must not be None.")
+
     true_value = apply_function(function,vx,vy,R_hat,tilt,absolute)
 
-    original_size = len(vx)
+    original_size = len(vx) if vx is not None else len(vy)
     indices_range = np.arange(original_size)
-    
     bootstrap_size = int(size_fraction*original_size)
     
     boot_values = np.empty(shape=(repeat))
@@ -272,15 +340,15 @@ def get_std_bootstrap(function,vx,vy=None,tilt=False,absolute=False,R_hat=None,s
     for i in range(repeat):
         bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace=True)
         
-        boot_vx = vx[bootstrap_indices]
-        
-        boot_vy = None
+        boot_vx,boot_vy = None,None
 
+        if vx is not None:
+            boot_vx = vx[bootstrap_indices]
         if vy is not None:
             boot_vy = vy[bootstrap_indices]
         
-            if show_vel_plots and i%show_freq == 0:
-                velocity_plot(boot_vx,boot_vy,**velocity_kws)
+        if boot_vx is not None and boot_vy is not None and show_vel_plots and i%show_freq == 0:
+            velocity_plot(boot_vx,boot_vy,**velocity_kws)
             
         boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
     
