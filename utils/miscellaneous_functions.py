@@ -181,7 +181,7 @@ def apply_cuts_to_df(df,cuts_dict,lims_dict=None):
         Key value-pairs: string (variable) and list (of [min,max] values to use as selection).
     lims_dict: dictionary, or list of dictionaries
         Key-value pairs: string (variable) and string (defining the limits to include in the selection: "neither", "min", "max" or both").
-        If None, defaults to "both" for all cuts.
+        Defaults to "both" for any cut whose lim is not specified.
     """
     
     if isinstance(cuts_dict,list):
@@ -190,29 +190,39 @@ def apply_cuts_to_df(df,cuts_dict,lims_dict=None):
         lims_dict = merge_dictionaries(lims_dict)
 
     if lims_dict is None:
-        lims_dict = {k:"both" for k in cuts_dict.keys()}
+        lims_dict = {} # initialise to empty here because of the issue with mutable default arguments - https://stackoverflow.com/questions/9158294
+
+    for k in cuts_dict:
+        if k not in lims_dict:
+            lims_dict[k] = "both"
     
-    assert cuts_dict.keys() == lims_dict.keys(), "The keys should be equal for the cuts and limits dictionaries."
+    assert cuts_dict.keys() == lims_dict.keys(), f"The keys should be equal for the cuts and limits dictionaries but were `{list(cuts_dict.keys())}` and `{list(lims_dict.keys())}` respectively."
         
     for key in cuts_dict.keys():
-        assert key in df, f"`{key}` is not a valid key in the dataframe."
+        if key not in df: raise ValueError(f"`{key}` is not a valid key in the dataframe.")
 
         cuts,lims = cuts_dict[key],lims_dict[key]
         
         minimum,maximum = cuts[0],cuts[1]
         
-        if lims == "neither":
-            df = df[(df[key]>minimum)&(df[key]<maximum)]
-        elif lims == "min":
-            df = df[(df[key]>=minimum)&(df[key]<maximum)]
-        elif lims == "max":
-            df = df[(df[key]>minimum)&(df[key]<=maximum)]
-        elif lims == "both":
-            df = df[(df[key]>=minimum)&(df[key]<=maximum)]
-        else:
-            raise ValueError(f"`{lims}` is not a valid limit. Use 'neither', 'min', 'max' or 'both'.")
-            
+        condition = build_lessgtr_condition(df[key],minimum,maximum,type=lims)
+
+        df = df[condition]
+
     return df
+
+def build_lessgtr_condition(array,min,max,type="both"):
+    """
+    type should be "neither","min","max" or "both". Defaults to "both"
+    """
+
+    if type not in ["neither","min","max","both"]:
+        raise ValueError(f"`{type}` is not a valid limit. Use 'neither', 'min', 'max' or 'both'.")
+
+    lower_end = array>=min if type in ["min","both"] else array>min
+    higher_end = array<=max if type in ["max","both"] else array<max
+
+    return lower_end&higher_end
 
 def print_nested_dict_recursive(dictionary):
     if not isinstance(dictionary,dict):
