@@ -37,7 +37,7 @@ def calculate_tilt_from_moments(varx, vary, covxy, absolute=False):
     tilt = np.degrees(np.arctan2(2.*covxy, var_diff)/2.)
     return tilt
 
-def calculate_tilt(vx, vy, absolute=False):
+def calculate_tilt(vx, vy, absolute=True):
     """
     I use the name "tilt" as synonym for "vertex deviation". If absolute=False, the tilt is the angle the semi-major axis of the velocity ellipse makes with the
     horizontal velocity axis direction, vx, (eg line-of-sight direction if working with vrvl velocities), and its range is (-90,90] deg. 
