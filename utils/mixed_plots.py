@@ -341,8 +341,9 @@ def visualise_1D_binning(value_array, bin_edges_min,bin_edges_max=None, given_ax
         if save_bool and save_path is not None:
             log_string = "_log" if log else ""
             prefix_string = f"{filename_prefix}_" if filename_prefix != "" else ""
+            nbins_string = f"_{hist_bins}bins"
 
-            filename = f"{prefix_string}chosenRanges{log_string}"
+            filename = f"{prefix_string}chosenRanges{log_string}{nbins_string}"
             
             filepath = save_path+filename+".png"
 
@@ -523,8 +524,8 @@ def plot_velocity_histograms_both_stats(df,vel_x_variable,vel_y_variable,bins=10
         cax_mean.xaxis.tick_top();cax_mean.xaxis.set_label_position("top")
         cax_std.xaxis.tick_top();cax_std.xaxis.set_label_position("top")
         
-        cax_std_ticks = mapf.get_cbar_ticks(cax=cax_std,vmin=min_std,vmax=max_std,which_axis="x")
-        mapf.remove_ticklabel(ax=cax_std,ticks=cax_std_ticks,which_axis="x",which_tick="bottom")
+        cax_std_ticks = mapf.get_ticks(cax=cax_std,vmin=min_std,vmax=max_std,axis="x")
+        mapf.remove_ticklabel(ax=cax_std,ticks=cax_std_ticks,axis="x",which="bottom")
     
     if True: # save, show
         colour_str = f"_meanstd{colour_var}"

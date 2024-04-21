@@ -108,7 +108,7 @@ def is_negative(value):
 def get_sign_string(value):
     return r"$-$" if is_negative(value) else ""
     
-def get_exponential(x):
+def get_exponential_form(x):
     for index, i in enumerate(str(x)):
         if i == '.':
             break
@@ -205,22 +205,19 @@ def apply_cuts_to_df(df,cuts_dict,lims_dict=None):
         
         minimum,maximum = cuts[0],cuts[1]
         
-        condition = build_lessgtr_condition(df[key],minimum,maximum,type=lims)
+        condition = build_lessgtr_condition(df[key],minimum,maximum,include=lims)
 
         df = df[condition]
 
     return df
 
-def build_lessgtr_condition(array,min,max,type="both"):
-    """
-    type should be "neither","min","max" or "both". Defaults to "both"
-    """
+def build_lessgtr_condition(array,low,high,include="both"):
+    
+    if include not in ["neither","min","max","both"]:
+        raise ValueError(f"`{include}` is not a valid limit. Use 'neither', 'min', 'max' or 'both'.")
 
-    if type not in ["neither","min","max","both"]:
-        raise ValueError(f"`{type}` is not a valid limit. Use 'neither', 'min', 'max' or 'both'.")
-
-    lower_end = array>=min if type in ["min","both"] else array>min
-    higher_end = array<=max if type in ["max","both"] else array<max
+    lower_end = array>=low if include in ["min","both"] else array>low
+    higher_end = array<=high if include in ["max","both"] else array<high
 
     return lower_end&higher_end
 

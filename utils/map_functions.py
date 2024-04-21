@@ -294,14 +294,14 @@ def get_vminvmax_from_map_dict(map_dict, map_variable, shared_cbar_variables=Non
     return vmin,vmax
 
 #####################################################################################################
-# Removing cbar tick labels
+# Removing overlapping tick labels
 
-def get_cbar_ticks(cax, vmin, vmax, which_axis="y"):
+def get_ticks(cax, vmin, vmax, axis="y"):
     """
     Unless the lowest and highest tick are exactly equal to the vmin and vmax, the ticks will go under and over by 1 (though they are hidden)
     """
     
-    cbar_ticks = cax.get_yticks() if which_axis == "y" else cax.get_xticks()
+    cbar_ticks = cax.get_yticks() if axis == "y" else cax.get_xticks()
     
     if cbar_ticks[0] != vmin:
         cbar_ticks = cbar_ticks[1:]
@@ -311,46 +311,46 @@ def get_cbar_ticks(cax, vmin, vmax, which_axis="y"):
     return cbar_ticks
 
 def lowest_tick_is_low(ticks, vmin,vmax, frac=15):
-    last_tick = ticks[0] # ax.get_yticks() gives the tick order from bottom to top
+    last_tick = ticks[0] # ax.get_yticks() (or x) gives the tick order from bottom to top
     return abs(vmin - last_tick) <= abs(vmax-vmin)/frac
     
 def highest_tick_is_high(ticks, vmin,vmax, frac=15):
     first_tick = ticks[-1]
     return abs(vmax-first_tick) <= abs(vmax-vmin)/frac
 
-def remove_ticklabel(ax, ticks, which_axis="y",which_tick="bottom"):
-    if which_tick not in ["bottom","top"]:
+def remove_ticklabel(ax, ticks, axis="y",which="bottom"):
+    if which not in ["bottom","top"]:
         raise ValueError("`which` must be 'bottom' or 'top'.")
 
-    ax.set_yticks(ticks) if which_axis == "y" else ax.set_xticks(ticks)
+    ax.set_yticks(ticks) if axis == "y" else ax.set_xticks(ticks)
     
-    slicing = slice(1,None) if which_tick == "bottom" else slice(None,-1)
+    slicing = slice(1,None) if which == "bottom" else slice(None,-1)
 
     formatted_labels = ["%s"%(np.float32(tick) if str(tick)[0].isdigit() else "−%s"%(str(np.float32(tick))[1:]))
                         for tick in ticks[slicing]]
     
-    formatted_labels = [""]+formatted_labels if which_tick == "bottom" else formatted_labels+[""]
+    formatted_labels = [""]+formatted_labels if which == "bottom" else formatted_labels+[""]
     
     # Check if there are already any labels set to ""
-    tick_labels = ax.get_yticklabels() if which_axis == "y" else ax.get_xticklabels()
+    tick_labels = ax.get_yticklabels() if axis == "y" else ax.get_xticklabels()
     current_labels = np.array([lab.get_text() for lab in tick_labels])
     formatted_labels = np.array(formatted_labels)
     formatted_labels[current_labels == ""] = ""
     
-    ax.set_yticklabels(formatted_labels) if which_axis == "y" else ax.set_xticklabels(formatted_labels)
+    ax.set_yticklabels(formatted_labels) if axis == "y" else ax.set_xticklabels(formatted_labels)
 
-def remove_overlapping_ticks(cax, next_cax, vminvmax, next_vminvmax, which="both", cbar_frac=15):
+def remove_overlapping_ticks(ax, next_ax, vminvmax, next_vminvmax, axis="y", which="both", frac=15):
     if which not in ["bottom","top","both"]:
         raise ValueError("`which` must be 'bottom', 'top' or 'both'.")
 
     vmin,vmax = vminvmax[0],vminvmax[1]
     next_vmin, next_vmax = next_vminvmax[0],next_vminvmax[1]
     
-    ticks = get_cbar_ticks(cax, vmin, vmax)
-    next_ticks = get_cbar_ticks(next_cax, next_vmin, next_vmax)
-    
-    if lowest_tick_is_low(ticks,vmin,vmax,frac=cbar_frac) and highest_tick_is_high(next_ticks,next_vmin,next_vmax,frac=cbar_frac):
+    ticks = get_ticks(ax, vmin, vmax, axis=axis)
+    next_ticks = get_ticks(next_ax, next_vmin, next_vmax, axis=axis)
+
+    if lowest_tick_is_low(ticks,vmin,vmax,frac=frac) and highest_tick_is_high(next_ticks,next_vmin,next_vmax,frac=frac):
         if which in ["bottom","both"]:
-            remove_ticklabel(cax, ticks, which_tick="bottom")
+            remove_ticklabel(ax, ticks, axis=axis, which="bottom")
         if which in ["top","both"]:
-            remove_ticklabel(next_cax, next_ticks, which_tick="top")
+            remove_ticklabel(next_ax, next_ticks, axis=axis, which="top")
