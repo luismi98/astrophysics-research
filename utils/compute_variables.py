@@ -234,16 +234,19 @@ def compute_lowhigh_std(true_value, perturbed_values):
 
     return std_low,std_high
 
-def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat = None, repeat = 500, show_vel_plots = False, show_freq = 10, velocity_kws={}):
+def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
 
     if vel_x_var is None and vel_y_var is None:
         raise ValueError("Both velocity components were set to None!")
     if montecarloconfig is None:
         raise ValueError("montecarloconfig cannot be None when estimating MC uncertainties.")
     
-    MC_values = np.empty(shape=(repeat))
+    MC_values = np.empty(shape=(montecarloconfig.repeats))
 
-    for i in range(repeat):
+    if montecarloconfig.random_resampling_indices is not None:
+        df_resampled = df.loc[montecarloconfig.random_resampling_indices]
+
+    for i in range(montecarloconfig.repeats):
         
         if montecarloconfig.perturbed_var == "d":
             
@@ -251,54 +254,31 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
                 raise ValueError("Expected the velocity components to be vr and/or vl when estimating the MC errors with distance uncertainties.")
 
             if montecarloconfig.random_resampling_indices is not None:
-                df_resampled = df.loc[montecarloconfig.random_resampling_indices]
-
                 MC_resampled_vx,MC_resampled_vy,within_cut = apply_MC_distance(df_resampled,vel_x_var,vel_y_var,montecarloconfig)
 
-                extra_N = len(df_resampled) - len(MC_resampled_vx if MC_resampled_vx is not None else MC_resampled_vy)
+                extra_N = len(df_resampled) - len(MC_resampled_vx if vel_x_var is not None else MC_resampled_vy)
                 MC_extra_vx = pd.Series() if vel_x_var is not None else None
                 MC_extra_vy = pd.Series() if vel_y_var is not None else None
+
                 if extra_N > 0: # some of the resampled stars have fallen beyond the affected cut - let's take some extra ones
-                    
-                    MC_extra_vx = pd.Series() if vel_x_var is not None else None
-                    MC_extra_vy = pd.Series() if vel_y_var is not None else None
 
                     while len(MC_extra_vx if vel_x_var is not None else MC_extra_vy) < extra_N:
                         extra_indices = pd.Index(np.random.choice(df.index, size=10*extra_N, replace=False))\
                                         .difference(montecarloconfig.random_resampling_indices)\
-                                        .difference(MC_extra_vx.index if MC_extra_vx is not None else MC_extra_vy)
+                                        .difference(MC_extra_vx.index if vel_x_var is not None else MC_extra_vy.index)
 
                         ex_vx,ex_vy,_ = apply_MC_distance(df.loc[extra_indices],vel_x_var,vel_y_var,montecarloconfig)
 
                         MC_extra_vx = pd.concat([MC_extra_vx, ex_vx]) if vel_x_var is not None else None
                         MC_extra_vy = pd.concat([MC_extra_vy, ex_vy]) if vel_y_var is not None else None
 
-                MC_vx = pd.concat([MC_resampled_vx, MC_extra_vx]) if vel_x_var is None else None
-                MC_vy = pd.concat([MC_resampled_vy, MC_extra_vy]) if vel_y_var is None else None
+                MC_vx = pd.concat([MC_resampled_vx, MC_extra_vx[:extra_N]]) if vel_x_var is not None else None
+                MC_vy = pd.concat([MC_resampled_vy, MC_extra_vy[:extra_N]]) if vel_y_var is not None else None
 
             else:
                 MC_vx,MC_vy,within_cut = apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig)
         else:
             raise ValueError(f"MC behaviour undefined for perturbed variable `{montecarloconfig.perturbed_var}`.")
-
-        if montecarloconfig.random_resampling_indices is not None:
-            perturbed_indices = MC_vx.index if MC_vx is not None else MC_vy.index
-            resampled_indices = montecarloconfig.random_resampling_indices
-            perturbed_resampled_indices = perturbed_indices.intersection(resampled_indices)
-
-            extra_N = len(resampled_indices) - len(perturbed_resampled_indices)
-
-            extra_perturbed = pd.Index([])
-            if extra_N > 0: # Add some extra stars to complete the sample if some of the perturbed stars went off limits after the perturbation
-
-                perturbed_not_resampled = perturbed_indices.difference(resampled_indices)
-                
-                extra_perturbed = pd.Index(np.random.choice(perturbed_not_resampled, size=extra_N, replace=False))
-
-            final_resampling_indices = perturbed_resampled_indices.union(extra_perturbed)
-
-            MC_vx = MC_vx[final_resampling_indices] if MC_vx is not None else None
-            MC_vy = MC_vy[final_resampling_indices] if MC_vy is not None else None
 
         if show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
