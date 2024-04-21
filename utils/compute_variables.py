@@ -293,7 +293,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     
     return std_low,std_high,MC_values,within_cut
 
-def get_std_bootstrap(function,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,size_fraction=1,repeat=500,show_vel_plots=False,show_freq=10,velocity_kws={}):
+def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
     Computes the standard deviation of a function applied to velocity components using bootstrap resampling.
 
@@ -317,14 +317,6 @@ def get_std_bootstrap(function,vx=None,vy=None,tilt=False,absolute=False,R_hat=N
     R_hat: array-like or None, optional
         Only has effect if tilt=True. If None, the tilt is a vertex deviation, otherwise it is a spherical tilt. 
         Default is None.
-
-    size_fraction: float, optional
-        Size of bootstrap samples as fraction of original sample. According to https://stats.stackexchange.com/questions/263710, it should be 1. 
-        Default is 1.
-
-    repeat: int, optional
-        Number of bootstrap samples to take. 
-        Default is 100.
 
     show_vel_plots: bool, optional
         If True, velocity plots are shown. 
@@ -354,12 +346,13 @@ def get_std_bootstrap(function,vx=None,vy=None,tilt=False,absolute=False,R_hat=N
 
     original_size = len(vx) if vx is not None else len(vy)
     indices_range = np.arange(original_size)
-    bootstrap_size = int(size_fraction*original_size)
-    
-    boot_values = np.empty(shape=(repeat))
 
-    for i in range(repeat):
-        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace=True)
+    bootstrap_size = original_size if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
+    
+    boot_values = np.empty(shape=(bootstrapconfig.repeats))
+
+    for i in range(bootstrapconfig.repeats):
+        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace = bootstrapconfig.replacement)
         
         boot_vx,boot_vy = None,None
 
@@ -368,7 +361,7 @@ def get_std_bootstrap(function,vx=None,vy=None,tilt=False,absolute=False,R_hat=N
         if vy is not None:
             boot_vy = vy[bootstrap_indices]
         
-        if boot_vx is not None and boot_vy is not None and show_vel_plots and i%show_freq == 0:
+        if show_vel_plots and i%show_freq == 0 and boot_vx is not None and boot_vy is not None:
             velocity_plot(boot_vx,boot_vy,**velocity_kws)
             
         boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
@@ -378,6 +371,10 @@ def get_std_bootstrap(function,vx=None,vy=None,tilt=False,absolute=False,R_hat=N
         boot_values[(true_value - boot_values)<-90] -= 180
     
     #Note this is a pseudo standard deviation: relative to true value as opposed to mean of bootstrap values
-    std = np.sqrt(np.nanmean((boot_values-true_value)**2))
+    if bootstrapconfig.symmetric:
+        std = np.sqrt(np.nanmean((boot_values-true_value)**2))
+        std_low,std_high = std,std
+    else:
+        std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=boot_values)
     
-    return std, boot_values
+    return std_low, std_high, boot_values
