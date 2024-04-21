@@ -267,6 +267,9 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
                                         .difference(montecarloconfig.random_resampling_indices)\
                                         .difference(MC_extra_vx.index if vel_x_var is not None else MC_extra_vy.index)
 
+                        if len(extra_indices) == 0:
+                            continue
+                        
                         ex_vx,ex_vy,_ = apply_MC_distance(df.loc[extra_indices],vel_x_var,vel_y_var,montecarloconfig)
 
                         MC_extra_vx = pd.concat([MC_extra_vx, ex_vx]) if vel_x_var is not None else None
