@@ -84,23 +84,23 @@ def get_solar_velocity(changing_reference_frame):
             # Drimmel 2018
     return [12.9,245.6,7.78] if changing_reference_frame else [0,0,0]
 
-def get_conversion_factor_from_mas_per_yr_to_rad_per_s(inverse=False):
+def get_conversion_mas_to_rad():
     """
-    Convert the pm from mas/yr (milli-arcsec per year) to rad/s
     1 mas = 10^-3 * (1 deg / 3600 arcsec) * (pi rad / 180 deg) = 10^3*pi/(3600*180) rad
-    1/1yr = 1/1yr * 1yr/(365 * 24 * 3600 s) = 1/1yr * 1yr/3.1536e7 s = 1/3.1536e7 1/s
     """
-    factor = 1e-3*np.pi/(180 * 3600 * 3.1536e7)
+    return 1e-3*np.pi/(180 * 3600)
 
-    return factor if not inverse else 1/factor
-
-def get_conversion_factor_from_kpc_to_km(inverse=False):
+def get_conversion_yr_to_s():
     """
-    Convert the distance from kpc to km
+    1yr = 1yr * 365 day/yr * 24 h/day * 3600 s/h = 3.1536e7 s
+    """
+    return 365*24*3600
+
+def get_conversion_kpc_to_km():
+    """
     1 kpc = 3.086e16 km
     """
-    factor = 3.086e16
-    return factor if not inverse else 1/factor
+    return 3.086e16
 
 def convert_pm_to_velocity(distance, pm, kpc_bool=True, masyr_bool=True):
     """
@@ -123,10 +123,10 @@ def convert_pm_to_velocity(distance, pm, kpc_bool=True, masyr_bool=True):
     velocity = distance * pm
 
     if kpc_bool:
-        velocity *= get_conversion_factor_from_kpc_to_km()
+        velocity *= get_conversion_kpc_to_km()
     
     if masyr_bool:
-        velocity *= get_conversion_factor_from_mas_per_yr_to_rad_per_s()
+        velocity *= get_conversion_mas_to_rad()/get_conversion_yr_to_s()
 
     return velocity
 
@@ -194,6 +194,10 @@ def XYZ_to_lbd(df):
 def lb_to_radec(df):
     radec=bovy_coords.lb_to_radec(df.l.values,df.b.values,degree=True)
     df['ra'],df['dec']=radec[:,0],radec[:,1]
+
+def radec_to_lb(df):
+    lb=bovy_coords.radec_to_lb(df.ra.values,df.dec.values,degree=True)
+    df['l'],df['b']=lb[:,0],lb[:,1]
 
 ########################################################################################################################
 
