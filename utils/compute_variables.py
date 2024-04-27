@@ -1,7 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 import ellipse_functions as EF
+import mixed_plots as MP
+
 
 # Note in all the code in this file vx & vy are placeholders for any desired velocity components.
 
@@ -139,21 +140,6 @@ def calculate_spherical_tilt_helper(R_hat, max_vector, visualise=False):
         print(phi_vector)
         print(i)
         
-        visualise_spherical_tilt_calculation(beta_array[:-1], phi_vector)
+        MP.visualise_spherical_tilt_calculation(beta_array[:-1], phi_vector)
     
     return spherical_tilt
-
-def visualise_spherical_tilt_calculation(beta_array, phi_vector):
-    fig,ax = plt.subplots()
-
-    for i,ang in enumerate(beta_array):
-        ang *= np.pi/180
-        ax.plot([0,np.cos(ang)],[0,np.sin(ang)],"k--")
-        ax.text(np.cos(ang),np.sin(ang),s=str(i),color="r")
-    
-    phi_vector *= np.pi/180
-    
-    ax.plot([0,np.cos(phi_vector)],[0,np.sin(phi_vector)],color="g")
-
-    ax.set_aspect("equal")
-    plt.show()

@@ -546,3 +546,18 @@ def plot_velocity_histograms_both_stats(df,vel_x_variable,vel_y_variable,bins=10
                 print("Saved in",save_path)
 
         plt.show() if show else plt.close()
+
+def visualise_spherical_tilt_calculation(beta_array, phi_vector):
+    fig,ax = plt.subplots()
+
+    for i,ang in enumerate(beta_array):
+        ang *= np.pi/180
+        ax.plot([0,np.cos(ang)],[0,np.sin(ang)],"k--")
+        ax.text(np.cos(ang),np.sin(ang),s=str(i),color="r")
+    
+    phi_vector *= np.pi/180
+    
+    ax.plot([0,np.cos(phi_vector)],[0,np.sin(phi_vector)],color="g")
+
+    ax.set_aspect("equal")
+    plt.show()
