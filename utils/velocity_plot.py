@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import compute_variables as CV
+import compute_errors as CE
 import miscellaneous_functions as MF
 import plotting_helpers as PH
 
@@ -84,13 +85,13 @@ def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-4
 
     variables_dict = {
         "vertex": CV.calculate_tilt(vx,vy,absolute=False),
-        "vertex_error": CV.get_std_bootstrap(CV.calculate_tilt,vx,vy,tilt=True,absolute=False,repeat=bootstrap_repeat),
+        "vertex_error": CE.get_std_bootstrap(CV.calculate_tilt,vx,vy,tilt=True,absolute=False,repeat=bootstrap_repeat),
         "vertex_abs": CV.calculate_tilt(vx,vy,absolute=True),
-        "vertex_abs_error": CV.get_std_bootstrap(CV.calculate_tilt,vx,vy,tilt=True,absolute=True,repeat=bootstrap_repeat),
+        "vertex_abs_error": CE.get_std_bootstrap(CV.calculate_tilt,vx,vy,tilt=True,absolute=True,repeat=bootstrap_repeat),
         "anisotropy": CV.calculate_anisotropy(vx,vy),
-        "anisotropy_error": CV.get_std_bootstrap(CV.calculate_anisotropy,vx,vy,repeat=bootstrap_repeat),
+        "anisotropy_error": CE.get_std_bootstrap(CV.calculate_anisotropy,vx,vy,repeat=bootstrap_repeat),
         "correlation": CV.calculate_correlation(vx,vy),
-        "correlation_error": CV.get_std_bootstrap(CV.calculate_correlation,vx,vy,repeat=bootstrap_repeat)
+        "correlation_error": CE.get_std_bootstrap(CV.calculate_correlation,vx,vy,repeat=bootstrap_repeat)
     }
     #for key in variables_dict:
     #    print(variables_dict[key])
