@@ -84,7 +84,25 @@ def get_solar_velocity(changing_reference_frame):
             # Drimmel 2018
     return [12.9,245.6,7.78] if changing_reference_frame else [0,0,0]
 
-def convert_pm_to_velocity(distance, pm):
+def get_conversion_factor_from_mas_per_yr_to_rad_per_s(inverse=False):
+    """
+    Convert the pm from mas/yr (milli-arcsec per year) to rad/s
+    1 mas = 10^-3 * (1 deg / 3600 arcsec) * (pi rad / 180 deg) = 10^3*pi/(3600*180) rad
+    1/1yr = 1/1yr * 1yr/(365 * 24 * 3600 s) = 1/1yr * 1yr/3.1536e7 s = 1/3.1536e7 1/s
+    """
+    factor = 1e-3*np.pi/(180 * 3600 * 3.1536e7)
+
+    return factor if not inverse else 1/factor
+
+def get_conversion_factor_from_kpc_to_km(inverse=False):
+    """
+    Convert the distance from kpc to km
+    1 kpc = 3.086e16 km
+    """
+    factor = 3.086e16
+    return factor if not inverse else 1/factor
+
+def convert_pm_to_velocity(distance, pm, kpc_bool=True, masyr_bool=True):
     """
     Multiplying the proper motions (pm) by the distance to the Sun (d) gives the velocities.
 
@@ -94,25 +112,22 @@ def convert_pm_to_velocity(distance, pm):
     Travelling 1 degree of longitude at the equator means travelling a much longer distance than near the North Pole.
     Therefore, a certain pml at b=0 is multiplied by cos(0)=1 but at b=20 we have to diminish it by cos(b)=0.93 when converting to velocity.
 
-    Convert the distance from kpc to km
-    1 kpc = 3.086e16 km
-
-    Convert the pm from mas/yr (milli-arcsec per year) to rad/s
-    1 mas = 10^-3 * (1 deg / 3600 arcsec) * (pi rad / 180 deg) = 10^3*pi/(3600*180) rad
-    1/1yr = 1/1yr * 1yr/3.1536e7 s = 1/3.1536e7 1/s
-
     Parameters
     ----------
     distance: float array
-        Distance in kpc
+        Distance in kpc if kpc_bool, otherwise in km
     pm: float array
-        Proper motion in mas/yr
+        Proper motion in mas/yr if masyr_bool, otherwise in rad/s
     """
 
-    d_factor = 3.086e16 * distance # km
-    pm_conversion = 1e-3*np.pi/(180 * 3600 * 3.1536e7) # rad/s
+    velocity = distance * pm
 
-    velocity = d_factor * pm_conversion * pm # km/s
+    if kpc_bool:
+        velocity *= get_conversion_factor_from_kpc_to_km()
+    
+    if masyr_bool:
+        velocity *= get_conversion_factor_from_mas_per_yr_to_rad_per_s()
+
     return velocity
 
 def oscar_radial_velocity_frame_change(velocity, long, lat, degrees = True, change_to_GSR = True):
@@ -184,11 +199,11 @@ def lb_to_radec(df):
 
 def pmrapmdec_to_pmlpmb(df):
     # Equatorial proper motions to galactic
-    pmbpml = bovy_coords.pmrapmdec_to_pmllpmbb(df['GAIA_PMRA'], df['GAIA_PMDEC'], df['RA'], df['DEC'], degree=True)
+    pmbpml = bovy_coords.pmrapmdec_to_pmllpmbb(df['pmra'], df['pmdec'], df['ra'], df['dec'], degree=True)
     df['pmlcosb'],df['pmb'] = pmbpml[:,0],pmbpml[:,1]
 
 def pmlpmb_to_pmrapmdec(df):
-    pmradec=bovy_coords.pmllpmbb_to_pmrapmdec(df.pml.values,df.pmb.values,
+    pmradec=bovy_coords.pmllpmbb_to_pmrapmdec(df.pmlcosb.values,df.pmb.values,
                                      df.l.values,df.b.values,degree=True)
     df['pmra'],df['pmdec']=pmradec[:,0],pmradec[:,1]
     
