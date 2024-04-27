@@ -152,13 +152,15 @@ def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0_CONST,Z0=Z0_C
     data.loc[data.phi < 0, 'phi'] += 360
 
     v_sun = coordinates.get_solar_velocity(changing_reference_frame=GSR)
-    if GSR: assert v_sun != [0,0,0], "`v_sun` should not be zero, as observed velocities are given from the perspective of the Sun and need to be corrected."
+    if GSR: assert v_sun != [0,0,0], "v_sun should not be zero, as observed velocities are given from the perspective of the Sun and need to be corrected."
 
     coordinates.vrpmlpmb_to_vxvyvz(data,v_sun=v_sun,R0=R0,Z0=Z0)
     coordinates.vxvyvz_to_vRvphivz(data)
 
     if GSR:
         coordinates.vxvyvz_to_vrpmlpmb(data)
+        coordinates.pmlpmb_to_pmrapmdec(data)
+        
     coordinates.pmlpmb_to_vlvb(data)
 
 def load_and_process_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observational_data/", error_bool = False, zabs=True, 
