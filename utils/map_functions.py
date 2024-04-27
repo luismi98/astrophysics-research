@@ -23,6 +23,41 @@ def get_map_string_lists(fractional_errors=False):
 
 ####################################################################################################
 
+def get_symbol(var):
+    if var in ["d",]:
+        return r"$%s$"%var
+    elif var == "FeH":
+        return "[Fe/H]"
+    elif var == "vr":
+        return r"$v_r$"
+    elif var == "pmra":
+        return r"$\mu_{\alpha}$"
+    elif var == "pmdec":
+        return r"$\mu_{\delta}$"
+    elif "_error" in var:
+        return r"ϵ$($"+get_symbol(var.removesuffix("_error"))+r"$)$"
+    elif "_fractionalerror" in var:
+        var_symbol = get_symbol(var.removesuffix("_fractionalerror")).removeprefix('$').removesuffix('$')
+        return r"ϵ$($" + var_symbol + r"$)/|$" + var_symbol + r"$|$"
+    else:
+        raise ValueError(f"Variable `{var}` not recognised")
+    
+def get_units(var):
+    if var in ["d","R"]:
+        return "kpc"
+    elif var == "FeH":
+        return ""
+    elif var in ["pmra","pmdec","pmlcosb","pml","pmb"]:
+        return "mas/yr"
+    elif var in ["vr","vl","vb","vx","vy","vz","vR","vphi","vM","vm"]:
+        return "km/s"
+    elif "_error" in var:
+        return get_units(var.removesuffix("_error"))
+    elif "_fractionalerror" in var:
+        return ""
+    else:
+        raise ValueError(f"Variable `{var}` not recognised")
+
 def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable="l",y_variable="b",diff=False):
     """
     Get dictionaries for the kinematic variable's symbols.
