@@ -25,6 +25,7 @@ def select_dr2_variables(allStar, error_bool=False):
             In astronomy, a spectrum (plural: spectra) is the range of colors (including invisible ones) that light from an astronomical object can have. 
             The cross-correlation mentioned here is a measure of similarity between the individual spectrum of an object and a combined or reference spectrum.
             This comparison can help in determining the radial velocity of the object.
+    VERR: "Uncertainty in VHELIO_AVG from the S/N-weighted individual RVs"
     
     Note to use for example the equatorial proper motion errors, we'd need to convert them to galactic proper motions (and then change the 
     units to velocity). The conversion from equatorial to galactic requires propagation of errors, which would need looking into the bovy 
@@ -70,13 +71,16 @@ def select_dr3_variables(gaiaDR3, error_bool=False):
 def get_dataframe(allStar, spectrophoto, gaiaDR3, error_bool=False):
     # DR2
     dr2 = allStar.to_pandas()
-    dr2.rename(columns={'GLON':'l', 'GLAT':'b','FE_H':'FeH', "VHELIO_AVG":"vr"}, inplace=True)
+    dr2.rename(columns={'GLON':'l', 'GLAT':'b', "RA":"ra", "DEC": "dec", 'FE_H':'FeH', "VHELIO_AVG":"vr"}, inplace=True)
     if error_bool:
-        dr2.rename(columns = {'FE_H_ERR':'FeH_error' },inplace=True)
+        dr2.rename(columns = {'FE_H_ERR':'FeH_error', "VERR":"vr_error"},inplace=True)
     del allStar
     
     # DR3
     dr3 = gaiaDR3.to_pandas()
+    dr3.rename(columns={"GAIA_PMRA":"pmra","GAIA_PMDEC":"pmdec"},inplace=True)
+    if error_bool:
+        dr3.rename(columns={"GAIA_PMRA_ERROR":"pmra_error","GAIA_PMDEC_ERROR":"pmdec_error"},inplace=True)
     #for column in dr3.columns:
     #    dr3.rename(columns={column:"dr3_"+column},inplace=True)
     del gaiaDR3
@@ -120,7 +124,7 @@ def clean_up_bad_data(data, verbose=False):
     
     # Eliminate nans
     no_metal = np.isnan(data["FeH"])
-    no_pm = np.isnan(data["GAIA_PMRA"]) | np.isnan(data["GAIA_PMDEC"])
+    no_pm = np.isnan(data["pmra"]) | np.isnan(data["pmdec"])
     no_distance = np.isnan(data["d"])
     no_vr = np.isnan(data["vr"])
     bad_ruwe = data["GAIA_RUWE"] > 1.4
@@ -158,7 +162,7 @@ def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0_CONST,Z0=Z0_C
     coordinates.pmlpmb_to_vlvb(data)
 
 def load_and_process_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observational_data/", error_bool = False, zabs=True, 
-                          GSR=True, R0=R0_CONST, verbose = False):
+                          GSR=True, R0=R0_CONST, verbose = False, drop_unused=True):
     
     print(f"Working with zabs == {zabs}; GSR == {GSR}.")
 
@@ -168,8 +172,8 @@ def load_and_process_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observatio
 
     convert_positions_and_velocities(data, zabs=zabs, GSR=GSR, R0=R0)
 
-    # clean up unused variables
-    columns_to_drop = ['RA','DEC','GAIA_PMRA','GAIA_PMDEC','GAIA_RUWE','good_delta_Gmag','pmb','pmlcosb']
-    data.drop(columns = columns_to_drop, inplace=True)
+    if drop_unused:
+        columns_to_drop = ['ra','dec','pmra','pmdec','GAIA_RUWE','good_delta_Gmag','pmb','pmlcosb']
+        data.drop(columns = columns_to_drop, inplace=True)
 
     return data
