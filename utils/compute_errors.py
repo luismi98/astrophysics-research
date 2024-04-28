@@ -18,53 +18,6 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
     else:
         return function(vx,vy,R_hat,absolute=absolute)
 
-def validate_MC_method(expected_perturbed_var,df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts,expected_vel_x_var=None,expected_vel_y_var=None):
-    if vel_x_var is None and vel_y_var is None:
-        raise ValueError("Both velocity components were set to None!")
-    if montecarloconfig.perturbed_var != expected_perturbed_var:
-        raise ValueError(f"Expected to perturb `{expected_perturbed_var}` but the config was set to `{montecarloconfig.perturbed_var}`.")
-    if vel_x_var is not None and expected_vel_x_var is not None and vel_x_var != expected_vel_x_var:
-        raise ValueError(f"Expected the x velocity component to be `{expected_vel_x_var}` but it was `{vel_x_var}`.")
-    if vel_y_var is not None and expected_vel_y_var is not None and vel_y_var != expected_vel_y_var:
-        raise ValueError(f"Expected the y velocity component to be `{expected_vel_y_var}` but it was `{vel_y_var}`.")
-    if len(montecarloconfig.affected_cuts_dict) != n_expected_affected_cuts:
-        raise ValueError(f"Expected to find `{n_expected_affected_cuts}` cuts affected by the MC, but found `{len(montecarloconfig.affected_cuts_dict)}`.")
-    if f"{expected_perturbed_var}_error" not in df and montecarloconfig.error_frac is None:
-        raise ValueError(f"{expected_perturbed_var}_error was not found in the dataframe and montecarloconfig.error_frac is None. Please specify the errors.")
-
-def apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig):
-    validate_MC_method("d",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=1,expected_vel_x_var="r",expected_vel_y_var="l")
-
-    vr = df["vr"] if vel_x_var is not None else None
-    vl = df["vl"] if vel_y_var is not None else None
-
-    d_error = montecarloconfig.error_frac * df["d"] if montecarloconfig.error_frac is not None else df["d_error"]
-
-    helper_df = pd.DataFrame(df[["l","b"]])
-
-    MC_d = df["d"] + np.random.normal(scale=d_error)
-    helper_df["d"] = MC_d
-    coordinates.lbd_to_xyz(helper_df)
-
-    cut_var = list(montecarloconfig.affected_cuts_dict.keys())[0]
-
-    within_cut = MF.build_lessgtr_condition(array=np.hypot(helper_df["x"],helper_df["y"]),\
-                                             low=montecarloconfig.affected_cuts_dict[cut_var][0],\
-                                             high=montecarloconfig.affected_cuts_dict[cut_var][1],\
-                                             include=montecarloconfig.affected_cuts_lims_dict[cut_var])
-    
-    MC_vr, MC_vl = None, None
-
-    if vr is not None:
-        MC_vr = vr[within_cut]
-    if vl is not None:
-        pmlcosb = vl / df["d"] # km/(s*kpc)
-
-        MC_d,MC_pmlcosb = MC_d[within_cut], pmlcosb[within_cut]
-        MC_vl = MC_pmlcosb*MC_d
-
-    return MC_vr, MC_vl,within_cut
-
 def apply_MC(df, var, error_frac):
     if error_frac is None and var+"_error" not in df:
         raise ValueError(f"`{var}_error` was not found in the dataframe and montecarloconfig.error_frac is None. Please specify the errors.")
@@ -72,6 +25,25 @@ def apply_MC(df, var, error_frac):
     error = error_frac * np.abs(df[var]) if error_frac is not None else df[var+"_error"]
 
     df[var] += np.random.normal(scale=error)
+
+def build_within_cut_boolean_array(df, affected_cuts_dict, affected_cuts_lims_dict):
+    if len(affected_cuts_dict) == 0:
+        return None
+    if len(affected_cuts_dict) > 1:
+        raise ValueError(f"Expected a single spatial cut to be affected but found `{len(affected_cuts_dict)}`, namely `{affected_cuts_dict}`.")
+
+    if "R" in affected_cuts_dict:
+        coordinates.lbd_to_xyz(df)
+
+        return MF.build_lessgtr_condition(array=np.hypot(df["x"],df["y"]), low=affected_cuts_dict["R"][0], high=affected_cuts_dict["R"][1],
+                                          include=affected_cuts_lims_dict["R"])
+    
+    elif "d" in affected_cuts_dict:
+        return MF.build_lessgtr_condition(array=df["d"], low=affected_cuts_dict["d"][0], high=affected_cuts_dict["d"][1],
+                                          include=affected_cuts_lims_dict["R"])
+    
+    else:
+        raise ValueError(f"Unexpected spatial cut `{affected_cuts_dict}`.")
 
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
 
@@ -84,9 +56,6 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     
     within_cut = None
     MC_values = np.empty(shape=(montecarloconfig.repeats))
-
-    if montecarloconfig.random_resampling_indices is not None:
-        df_resampled = df.loc[montecarloconfig.random_resampling_indices]
 
     for i in range(montecarloconfig.repeats):
 
@@ -102,34 +71,27 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
             apply_MC(df_helper, "pmdec", montecarloconfig.error_frac)
 
         if "d" in montecarloconfig.perturbed_vars:
+            apply_MC(df_helper, "d", montecarloconfig.error_frac)
+
+            within_cut = build_within_cut_boolean_array(df_helper, montecarloconfig.affected_cuts_dict, montecarloconfig.affected_cuts_lims_dict)
+            
+            if within_cut is not None:        
+                df_helper = df_helper[within_cut]
 
             if montecarloconfig.random_resampling_indices is not None:
-                MC_resampled_vx,MC_resampled_vy,within_cut = apply_MC_distance(df_resampled,vel_x_var,vel_y_var,montecarloconfig)
 
-                extra_N = len(df_resampled) - len(MC_resampled_vx if vel_x_var is not None else MC_resampled_vy)
-                MC_extra_vx = pd.Series() if vel_x_var is not None else None
-                MC_extra_vy = pd.Series() if vel_y_var is not None else None
+                resampled_indices = df_helper.index.intersection(montecarloconfig.random_resampling_indices)
 
-                if extra_N > 0: # some of the resampled stars have fallen beyond the affected cut - let's take some extra ones
+                extra_N = len(montecarloconfig.random_resampling_indices) - len(resampled_indices)
+                if extra_N > 0: # some of the resampled stars fell outside the spatial cut, let's take some extra ones
+                    
+                    extra_indices = np.random.choice(
+                        df_helper.index.difference(resampled_indices), size=extra_N, replace=False
+                    )
 
-                    while len(MC_extra_vx if vel_x_var is not None else MC_extra_vy) < extra_N:
-                        extra_indices = pd.Index(np.random.choice(df.index, size=10*extra_N, replace=False))\
-                                        .difference(montecarloconfig.random_resampling_indices)\
-                                        .difference(MC_extra_vx.index if vel_x_var is not None else MC_extra_vy.index)
-
-                        if len(extra_indices) == 0:
-                            continue
-                        
-                        ex_vx,ex_vy,_ = apply_MC_distance(df.loc[extra_indices],vel_x_var,vel_y_var,montecarloconfig)
-
-                        MC_extra_vx = pd.concat([MC_extra_vx, ex_vx]) if vel_x_var is not None else None
-                        MC_extra_vy = pd.concat([MC_extra_vy, ex_vy]) if vel_y_var is not None else None
-
-                MC_vx = pd.concat([MC_resampled_vx, MC_extra_vx[:extra_N]]) if vel_x_var is not None else None
-                MC_vy = pd.concat([MC_resampled_vy, MC_extra_vy[:extra_N]]) if vel_y_var is not None else None
-
-            else:
-                MC_vx,MC_vy,within_cut = apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig)
+                    df_helper = df_helper.loc[resampled_indices.union(extra_indices)]
+                else:
+                    df_helper = df_helper.loc[resampled_indices]
 
         else:
             if montecarloconfig.random_resampling_indices is not None:
