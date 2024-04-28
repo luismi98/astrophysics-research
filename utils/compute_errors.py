@@ -65,49 +65,6 @@ def apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig):
 
     return MC_vr, MC_vl,within_cut
 
-def apply_MC_vr_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
-    validate_MC_method("vr",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
-
-    if vel_x_var is None:
-        return None, df["vl"]
-
-    df_helper = pd.DataFrame(df[["vr","vr_error"] if "v_error" in df else ["vr"]])
-    apply_MC(df_helper,"vr",montecarloconfig.error_frac)
-
-    return df_helper["vr"], df["vl"] if vel_y_var is not None else None
-
-def apply_MC_pmra_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
-    validate_MC_method("pmra",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
-
-    if vel_y_var is None:
-        return df["vr"], None
-
-    df_helper = pd.DataFrame(df[["pmra","pmdec","ra","dec"]])
-
-    apply_MC(df_helper,"pmra",montecarloconfig.error_frac)
-
-    coordinates.pmrapmdec_to_pmlpmb(df_helper)
-
-    MC_vl = coordinates.convert_pm_to_velocity(df["d"], df_helper["pmlcosb"], kpc_bool=True, masyr_bool=True)
-
-    return df["vr"] if vel_x_var is not None else None, MC_vl
-
-def apply_MC_pmdec_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
-    validate_MC_method("pmdec",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
-
-    if vel_y_var is None:
-        return df["vr"], None
-
-    df_helper = pd.DataFrame(df[["pmra","pmdec","ra","dec"]])
-
-    apply_MC(df_helper,"pmdec",montecarloconfig.error_frac)
-
-    coordinates.pmrapmdec_to_pmlpmb(df_helper)
-
-    MC_vl = coordinates.convert_pm_to_velocity(df["d"], df_helper["pmlcosb"], kpc_bool=True, masyr_bool=True)
-
-    return df["vr"] if vel_x_var is not None else None, MC_vl
-
 def apply_MC(df, var, error_frac):
     if error_frac is None and var+"_error" not in df:
         raise ValueError(f"`{var}_error` was not found in the dataframe and montecarloconfig.error_frac is None. Please specify the errors.")
@@ -174,7 +131,11 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
             else:
                 MC_vx,MC_vy,within_cut = apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig)
 
-        MC_vx, MC_vy = extract_velocities_after_MC(df, montecarloconfig.perturbed_vars, vel_x_var, vel_y_var)
+        else:
+            if montecarloconfig.random_resampling_indices is not None:
+                df_helper = df_helper.loc[montecarloconfig.random_resampling_indices]
+
+        MC_vx, MC_vy = extract_velocities_after_MC(df_helper, montecarloconfig.perturbed_vars, vel_x_var, vel_y_var)
 
         if show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
