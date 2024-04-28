@@ -20,7 +20,7 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
 
 def apply_MC(df, var, error_frac):
     if error_frac is None and var+"_error" not in df:
-        raise ValueError(f"`{var}_error` was not found in the dataframe and montecarloconfig.error_frac is None. Please specify the errors.")
+        raise ValueError(f"`{var}_error` was not found in the dataframe and error_frac is None. Please specify the errors.")
 
     error = error_frac * np.abs(df[var]) if error_frac is not None else df[var+"_error"]
 
@@ -40,10 +40,31 @@ def build_within_cut_boolean_array(df, affected_cuts_dict, affected_cuts_lims_di
     
     elif "d" in affected_cuts_dict:
         return MF.build_lessgtr_condition(array=df["d"], low=affected_cuts_dict["d"][0], high=affected_cuts_dict["d"][1],
-                                          include=affected_cuts_lims_dict["R"])
+                                          include=affected_cuts_lims_dict["d"])
     
     else:
         raise ValueError(f"Unexpected spatial cut `{affected_cuts_dict}`.")
+
+def add_equatorial_coord_and_pm_to_df_if_needed(df):
+
+    if "pmra" not in df or "pmdec" not in df:
+        
+        if "pmlcosb" not in df or "pmb" not in df:
+            
+            df["pmlcosb"] = df["vl"]/df["d"] # km/(s*kpc)
+            df["pmb"] = df["vb"]/df["d"]
+
+            for pm in ["pmlcosb", "pmb"]:
+                df[pm] /= coordinates.get_conversion_kpc_to_km() # rad/s
+                df[pm] /= coordinates.get_conversion_mas_to_rad() # mas/s
+                df[pm] *= coordinates.get_conversion_yr_to_s() # mas/yr
+
+        coordinates.pmlpmb_to_pmrapmdec(df)
+
+    if "ra" not in df or "dec" not in df:
+        coordinates.lb_to_radec(df)
+
+    return df
 
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
 
@@ -54,6 +75,9 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     if len(montecarloconfig.perturbed_vars) == 0:
         raise ValueError("The list of montecarloconfig.perturbed_vars was empty!")
     
+    if "pmra" in montecarloconfig.perturbed_vars or "pmdec" in montecarloconfig.perturbed_vars or "d" in montecarloconfig.perturbed_vars:
+        add_equatorial_coord_and_pm_to_df_if_needed(df)
+
     within_cut = None
     MC_values = np.empty(shape=(montecarloconfig.repeats))
 
@@ -131,13 +155,13 @@ def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=No
     MC_vx,MC_vy = None,None
 
     if vel_x_var is not None:
-        if vel_x_var == "vr":
+        if vel_x_var == "r":
             MC_vx = df["vr"]
-        else:
+        else: # this is here because extra conversions (e.g. vlvb to vxvy) will be needed to propagate the uncertainties
             raise ValueError(f"Velocity extraction undefined for vel_x_var `{vel_x_var}`.")
 
     if vel_y_var is not None:
-        if vel_y_var == "vl":
+        if vel_y_var == "l":
             MC_vy = df["vl"]
         else:
             raise ValueError(f"Velocity extraction undefined for vel_y_var `{vel_y_var}`.")
