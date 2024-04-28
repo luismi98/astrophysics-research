@@ -1,4 +1,4 @@
-import miscellaneous_functions as MF
+import utils.miscellaneous_functions as MF
 
 class BootstrapConfig():
     def __init__(self, symmetric=True, repeats=500, replacement=True, bootstrap_size=None):

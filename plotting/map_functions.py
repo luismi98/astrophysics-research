@@ -1,5 +1,5 @@
 import numpy as np
-import miscellaneous_functions as MF
+import utils.miscellaneous_functions as MF
 
 def get_map_string_lists(fractional_errors=False):
     full_map_string_list = ["number",\

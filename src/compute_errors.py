@@ -1,10 +1,9 @@
-import pandas as pd
 import numpy as np
 import copy
 
-from velocity_plot import velocity_plot
-import coordinates
-import miscellaneous_functions as MF
+from plotting.velocity_plot import velocity_plot
+import utils.coordinates as coordinates
+import utils.miscellaneous_functions as MF
 
 def apply_function(function, vx, vy, R_hat, tilt, absolute):
     if vx is None and vy is None:

@@ -1,6 +1,6 @@
 import numpy as np
 import compute_variables as CV
-import plotting_helpers as PH
+import plotting.plotting_helpers as PH
 
 def get_vel_ellipse_coords(varx,vary,covxy,ellipse_factor=1):
     """

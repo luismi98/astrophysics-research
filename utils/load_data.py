@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.table import Table
-import coordinates
-import miscellaneous_functions as MF
+import utils.coordinates as coordinates
+import utils.miscellaneous_functions as MF
 
 Z0_CONST = coordinates.get_solar_height()
 R0_CONST = coordinates.get_solar_radius()

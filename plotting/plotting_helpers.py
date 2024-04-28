@@ -6,7 +6,7 @@ from matplotlib import colormaps as mplcmaps
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-import miscellaneous_functions as MF
+import utils.miscellaneous_functions as MF
 
 COOLWARM = mplcmaps["coolwarm"]
 REDS = mplcmaps["Reds"]

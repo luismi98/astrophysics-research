@@ -8,9 +8,9 @@ from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
 import matplotlib.cm as cm
 
-import miscellaneous_functions as MF
-import plotting_helpers as PH
-import map_functions as mapf
+import utils.miscellaneous_functions as MF
+import plotting.plotting_helpers as PH
+import plotting.map_functions as mapf
 
 STELLAR_MASS = 9.5*10**3 # stellar masses - see bottom left of page 8 in Debattista 2017
 

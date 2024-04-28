@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-import coordinates
+import utils.coordinates as coordinates
 
 Z0_CONST = coordinates.get_solar_height()
 R0_CONST = coordinates.get_solar_radius()

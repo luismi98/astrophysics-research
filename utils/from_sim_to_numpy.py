@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pynbody #https://pynbody.github.io/pynbody/reference/essentials.html
 from galpy.util import coords as bovy_coords #https://docs.galpy.org/en/v1.6.0/reference/bovycoords.html
-import coordinates
+import utils.coordinates as coordinates
 from load_sim import build_filename
 
 BAR_ANGLE = coordinates.get_bar_angle()

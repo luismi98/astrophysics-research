@@ -7,8 +7,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import compute_variables as CV
 import compute_errors as CE
-import miscellaneous_functions as MF
-import plotting_helpers as PH
+import utils.miscellaneous_functions as MF
+import plotting.plotting_helpers as PH
 
 # This function is a monstruosity I wrote long ago. When I have some time I will break it down into pieces
 def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-400,400]], bootstrap_repeat=500, tilt_abs=False,bins=30, cmap='coolwarm', alpha=0.7, smoothing=-1, contour_levels=7, 
