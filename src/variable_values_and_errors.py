@@ -108,9 +108,6 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
     if "mean_vx" in full_map_string_list:
         map_dict["mean_vx"] = np.mean(vx)
         map_dict["mean_vx_error_low"],map_dict["mean_vx_error_high"] = get_error(true_value=map_dict["mean_vx"],function=np.mean,vel_x_var=vel_x_var,**common_error_args)
-
-        if verbose and error_type == "MC" and montecarloconfig.perturbed_var == "d" and vel_x_var=="r":
-            print(f"Computed MC distance errors for mean_vx, but note the perturbation affects vr only indirectly (from stars moving across the radial limit).")
     
     if "mean_vy" in full_map_string_list:
         map_dict["mean_vy"] = np.mean(vy)
@@ -119,9 +116,6 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
     if "std_vx" in full_map_string_list:
         map_dict["std_vx"] = np.sqrt(varx)
         map_dict["std_vx_error_low"],map_dict["std_vx_error_high"] = get_error(true_value=map_dict["std_vx"],function=np.std,vel_x_var=vel_x_var,**common_error_args)
-
-        if verbose and error_type == "MC" and montecarloconfig.perturbed_var == "d" and vel_x_var=="r":
-            print(f"Computed MC distance errors for std_vx, but note the perturbation affects vr only indirectly (from stars moving across the radial limit).")
 
     if "std_vy" in full_map_string_list:
         map_dict["std_vy"] = np.sqrt(vary)
