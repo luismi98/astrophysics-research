@@ -7,7 +7,9 @@ import matplotlib.path as mpltPath
 from shapely.geometry import Polygon
 
 def voronoi_finite_polygons_2d(vor): 
-    # Full credit to Steven
+    """
+    Full credit to Steven Gough-Kelly (https://github.com/steventgk)
+    """
     
     new_regions = []
     new_vertices = vor.vertices.tolist()
@@ -101,7 +103,9 @@ def generate_2Dvor(x_values, y_values, min_number_stars, remove_unbound_regions=
     return vor, points
 
 def calculate_point_region(vor, x_values, y_values, remove_unbound_regions=False):
-    # Build point_region array (maps each input datapoint to a Voronoi region)
+    """
+    Build point_region array (maps each input datapoint to a Voronoi region)
+    """
     
     N = len(x_values)
     input_points = np.column_stack([x_values,y_values])
