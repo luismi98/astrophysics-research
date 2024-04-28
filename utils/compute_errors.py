@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import copy
 
 from velocity_plot import velocity_plot
 import coordinates
@@ -64,57 +65,31 @@ def apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig):
 
     return MC_vr, MC_vl,within_cut
 
-def apply_MC_vr(df,vel_x_var,vel_y_var,montecarloconfig):
+def apply_MC_vr_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
     validate_MC_method("vr",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
 
     if vel_x_var is None:
         return None, df["vl"]
 
-    vr_error = montecarloconfig.error_frac * np.abs(df["vr"]) if montecarloconfig.error_frac is not None else df["vr_error"]
-    MC_vr = df["vr"] + np.random.normal(scale=vr_error)
+    df_helper = pd.DataFrame(df[["vr","vr_error"] if "v_error" in df else ["vr"]])
+    apply_MC_vr(df_helper,montecarloconfig.error_frac)
 
-    return MC_vr, df["vl"] if vel_y_var is not None else None
+    return df_helper["vr"], df["vl"] if vel_y_var is not None else None
 
-def get_df_helper_with_equatorial_coord_and_pm(df):
-    df_helper = pd.DataFrame(df[["l","b"]])
+def apply_MC_vr(df, error_frac):
+    vr_error = error_frac * np.abs(df["vr"]) if error_frac is not None else df["vr_error"]
 
-    if "pmra" in df and "pmdec" in df:
-        df_helper[["pmra","pmdec"]] = df[["pmra","pmdec"]]
+    df["vr"] += np.random.normal(scale=vr_error)
 
-    else:
-
-        if "pmlcosb" in df and "pmb" in df:
-            df_helper[["pmlcosb","pmb"]] = df[["pmlcosb","pmb"]]
-
-        else:
-            df_helper["pmlcosb"] = df["vl"]/df["d"] # km/(s*kpc)
-            df_helper["pmb"] = df["vb"]/df["d"]
-
-            for pm in ["pmlcosb", "pmb"]:
-                df_helper[pm] /= coordinates.get_conversion_kpc_to_km() # rad/s
-                df_helper[pm] /= coordinates.get_conversion_mas_to_rad() # mas/s
-                df_helper[pm] *= coordinates.get_conversion_yr_to_s() # mas/yr
-
-        coordinates.pmlpmb_to_pmrapmdec(df_helper)
-
-    if "ra" in df and "dec" in df:
-        df_helper[["ra","dec"]] = df[["ra","dec"]]
-    else:
-        coordinates.lb_to_radec(df_helper)
-
-    return df_helper
-
-def apply_MC_pmra(df,vel_x_var,vel_y_var,montecarloconfig):
+def apply_MC_pmra_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
     validate_MC_method("pmra",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
 
     if vel_y_var is None:
         return df["vr"], None
 
-    df_helper = get_df_helper_with_equatorial_coord_and_pm(df)
+    df_helper = pd.DataFrame(df[["pmra","pmdec","ra","dec"]])
 
-    pmra_error = montecarloconfig.error_frac * np.abs(df_helper["pmra"]) if montecarloconfig.error_frac is not None else df["pmra_error"]
-
-    df_helper["pmra"] += np.random.normal(scale=pmra_error)
+    apply_MC_pmra(df_helper,montecarloconfig.error_frac)
 
     coordinates.pmrapmdec_to_pmlpmb(df_helper)
 
@@ -122,23 +97,31 @@ def apply_MC_pmra(df,vel_x_var,vel_y_var,montecarloconfig):
 
     return df["vr"] if vel_x_var is not None else None, MC_vl
 
-def apply_MC_pmdec(df,vel_x_var,vel_y_var,montecarloconfig):
+def apply_MC_pmra(df, error_frac):
+    pmra_error = error_frac * np.abs(df["pmra"]) if error_frac is not None else df["pmra_error"]
+
+    df["pmra"] += np.random.normal(scale=pmra_error)
+
+def apply_MC_pmdec_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
     validate_MC_method("pmdec",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
 
     if vel_y_var is None:
         return df["vr"], None
 
-    df_helper = get_df_helper_with_equatorial_coord_and_pm(df)
+    df_helper = pd.DataFrame(df[["pmra","pmdec","ra","dec"]])
 
-    pmdec_error = montecarloconfig.error_frac * np.abs(df_helper["pmdec"]) if montecarloconfig.error_frac is not None else df["pmdec_error"]
-
-    df_helper["pmdec"] += np.random.normal(scale=pmdec_error)
+    apply_MC_pmdec(df_helper,montecarloconfig.error_frac)
 
     coordinates.pmrapmdec_to_pmlpmb(df_helper)
 
     MC_vl = coordinates.convert_pm_to_velocity(df["d"], df_helper["pmlcosb"], kpc_bool=True, masyr_bool=True)
 
     return df["vr"] if vel_x_var is not None else None, MC_vl
+
+def apply_MC_pmdec(df, error_frac):
+    pmdec_error = error_frac * np.abs(df["pmdec"]) if error_frac is not None else df["pmdec_error"]
+
+    df["pmdec"] += np.random.normal(scale=pmdec_error)
 
 def compute_lowhigh_std(true_value, perturbed_values):
     values_above = perturbed_values[perturbed_values > true_value]
@@ -171,11 +154,19 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         df_resampled = df.loc[montecarloconfig.random_resampling_indices]
 
     for i in range(montecarloconfig.repeats):
-        
-        if montecarloconfig.perturbed_var == "d":
-            
-            if (vel_x_var is not None and vel_x_var != "r") or (vel_y_var is not None and vel_y_var != "l"):
-                raise ValueError("Expected the velocity components to be vr and/or vl when estimating the MC errors with distance uncertainties.")
+
+        df_helper = copy.deepcopy(df)
+
+        if "vr" in montecarloconfig.perturbed_vars:
+            MC_vx,MC_vy = apply_MC_vr(df_helper, vel_x_var,vel_y_var,montecarloconfig)
+
+        if "pmra" in montecarloconfig.perturbed_vars:
+            MC_vx,MC_vy = apply_MC_pmra(df_helper, vel_x_var,vel_y_var,montecarloconfig)
+
+        if "pmdec" in montecarloconfig.perturbed_vars:
+            MC_vx,MC_vy = apply_MC_pmdec(df_helper, vel_x_var,vel_y_var,montecarloconfig)
+
+        if "d" in montecarloconfig.perturbed_vars:
 
             if montecarloconfig.random_resampling_indices is not None:
                 MC_resampled_vx,MC_resampled_vy,within_cut = apply_MC_distance(df_resampled,vel_x_var,vel_y_var,montecarloconfig)
@@ -205,15 +196,6 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
             else:
                 MC_vx,MC_vy,within_cut = apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig)
 
-        elif montecarloconfig.perturbed_var == "vr":
-            MC_vx,MC_vy = apply_MC_vr(df if montecarloconfig.random_resampling_indices is None else df_resampled,\
-                                                       vel_x_var,vel_y_var,montecarloconfig)
-        elif montecarloconfig.perturbed_var == "pmra":
-            MC_vx,MC_vy = apply_MC_pmra(df if montecarloconfig.random_resampling_indices is None else df_resampled,\
-                                                       vel_x_var,vel_y_var,montecarloconfig)
-        elif montecarloconfig.perturbed_var == "pmdec":
-            MC_vx,MC_vy = apply_MC_pmdec(df if montecarloconfig.random_resampling_indices is None else df_resampled,\
-                                                       vel_x_var,vel_y_var,montecarloconfig)
         else:
             raise ValueError(f"MC behaviour undefined for perturbed variable `{montecarloconfig.perturbed_var}`.")
 

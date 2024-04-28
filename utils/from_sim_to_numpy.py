@@ -102,6 +102,9 @@ def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=BAR_
 
     coordinates.pmlpmb_to_vlvb(df)
 
+    coordinates.lb_to_radec(df)
+    coordinates.pmlpmb_to_pmrapmdec(df)
+
     coordinates.xyz_to_Rphiz(df)
     coordinates.vxvyvz_to_vRvphivz(df)
     
