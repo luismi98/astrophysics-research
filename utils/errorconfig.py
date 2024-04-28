@@ -26,11 +26,13 @@ class BootstrapConfig():
         self.symmetric = symmetric
 
 class MonteCarloConfig():
-    def __init__(self, perturbed_var, affected_cuts_dict, repeats=500, affected_cuts_lims_dict=None, error_frac=None, random_resampling_indices=None):
+    def __init__(self, perturbed_vars, affected_cuts_dict, repeats=500, affected_cuts_lims_dict=None, error_frac=None,symmetric=False,\
+                  random_resampling_indices=None):
         
-        self.perturbed_var = perturbed_var
+        self.perturbed_vars = perturbed_vars
         self.error_frac = error_frac
         self.repeats = repeats
+        self.symmetric = symmetric
         
         # When random resampling (without replacement), we perform it before binning (to compute the true values) and here we keep track of
         # the result of that resampling when applying the MC. After the perturbation, we select the same stars as we did originally for the true values

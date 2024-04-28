@@ -72,14 +72,9 @@ def apply_MC_vr_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
         return None, df["vl"]
 
     df_helper = pd.DataFrame(df[["vr","vr_error"] if "v_error" in df else ["vr"]])
-    apply_MC_vr(df_helper,montecarloconfig.error_frac)
+    apply_MC(df_helper,"vr",montecarloconfig.error_frac)
 
     return df_helper["vr"], df["vl"] if vel_y_var is not None else None
-
-def apply_MC_vr(df, error_frac):
-    vr_error = error_frac * np.abs(df["vr"]) if error_frac is not None else df["vr_error"]
-
-    df["vr"] += np.random.normal(scale=vr_error)
 
 def apply_MC_pmra_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
     validate_MC_method("pmra",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
@@ -89,18 +84,13 @@ def apply_MC_pmra_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
 
     df_helper = pd.DataFrame(df[["pmra","pmdec","ra","dec"]])
 
-    apply_MC_pmra(df_helper,montecarloconfig.error_frac)
+    apply_MC(df_helper,"pmra",montecarloconfig.error_frac)
 
     coordinates.pmrapmdec_to_pmlpmb(df_helper)
 
     MC_vl = coordinates.convert_pm_to_velocity(df["d"], df_helper["pmlcosb"], kpc_bool=True, masyr_bool=True)
 
     return df["vr"] if vel_x_var is not None else None, MC_vl
-
-def apply_MC_pmra(df, error_frac):
-    pmra_error = error_frac * np.abs(df["pmra"]) if error_frac is not None else df["pmra_error"]
-
-    df["pmra"] += np.random.normal(scale=pmra_error)
 
 def apply_MC_pmdec_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
     validate_MC_method("pmdec",df,montecarloconfig,vel_x_var,vel_y_var,n_expected_affected_cuts=0,expected_vel_x_var="r",expected_vel_y_var="l")
@@ -110,7 +100,7 @@ def apply_MC_pmdec_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
 
     df_helper = pd.DataFrame(df[["pmra","pmdec","ra","dec"]])
 
-    apply_MC_pmdec(df_helper,montecarloconfig.error_frac)
+    apply_MC(df_helper,"pmdec",montecarloconfig.error_frac)
 
     coordinates.pmrapmdec_to_pmlpmb(df_helper)
 
@@ -118,27 +108,13 @@ def apply_MC_pmdec_and_extract_vrvl(df,vel_x_var,vel_y_var,montecarloconfig):
 
     return df["vr"] if vel_x_var is not None else None, MC_vl
 
-def apply_MC_pmdec(df, error_frac):
-    pmdec_error = error_frac * np.abs(df["pmdec"]) if error_frac is not None else df["pmdec_error"]
+def apply_MC(df, var, error_frac):
+    if error_frac is None and var+"_error" not in df:
+        raise ValueError(f"`{var}_error` was not found in the dataframe and montecarloconfig.error_frac is None. Please specify the errors.")
 
-    df["pmdec"] += np.random.normal(scale=pmdec_error)
+    error = error_frac * np.abs(df[var]) if error_frac is not None else df[var+"_error"]
 
-def compute_lowhigh_std(true_value, perturbed_values):
-    values_above = perturbed_values[perturbed_values > true_value]
-    values_below = perturbed_values[perturbed_values < true_value]
-    values_equal = perturbed_values[perturbed_values == true_value]
-
-    # divide perturbed values which result equal to the true value proportionally between the above and below values
-    frac_equal_to_above = len(values_above) / (len(values_above) + len(values_below))
-    idx_equal_to_above = int( len(values_equal) * frac_equal_to_above )
-
-    values_above = np.append(values_above, values_equal[:idx_equal_to_above])
-    values_below = np.append(values_below, values_equal[idx_equal_to_above:])
-
-    std_low = np.sqrt(np.mean((values_below - true_value)**2)) if len(values_below) > 0 else 0
-    std_high = np.sqrt(np.mean((values_above - true_value)**2)) if len(values_above) > 0 else 0
-
-    return std_low,std_high
+    df[var] += np.random.normal(scale=error)
 
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
 
@@ -146,6 +122,8 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         raise ValueError("Both velocity components were set to None!")
     if montecarloconfig is None:
         raise ValueError("montecarloconfig cannot be None when estimating MC uncertainties.")
+    if len(montecarloconfig.perturbed_vars) == 0:
+        raise ValueError("The list of montecarloconfig.perturbed_vars was empty!")
     
     within_cut = None
     MC_values = np.empty(shape=(montecarloconfig.repeats))
@@ -158,13 +136,13 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         df_helper = copy.deepcopy(df)
 
         if "vr" in montecarloconfig.perturbed_vars:
-            MC_vx,MC_vy = apply_MC_vr(df_helper, vel_x_var,vel_y_var,montecarloconfig)
+            apply_MC(df_helper, "vr", montecarloconfig.error_frac)
 
         if "pmra" in montecarloconfig.perturbed_vars:
-            MC_vx,MC_vy = apply_MC_pmra(df_helper, vel_x_var,vel_y_var,montecarloconfig)
+            apply_MC(df_helper, "pmra", montecarloconfig.error_frac)
 
         if "pmdec" in montecarloconfig.perturbed_vars:
-            MC_vx,MC_vy = apply_MC_pmdec(df_helper, vel_x_var,vel_y_var,montecarloconfig)
+            apply_MC(df_helper, "pmdec", montecarloconfig.error_frac)
 
         if "d" in montecarloconfig.perturbed_vars:
 
@@ -196,8 +174,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
             else:
                 MC_vx,MC_vy,within_cut = apply_MC_distance(df,vel_x_var,vel_y_var,montecarloconfig)
 
-        else:
-            raise ValueError(f"MC behaviour undefined for perturbed variable `{montecarloconfig.perturbed_var}`.")
+        MC_vx, MC_vy = extract_velocities_after_MC(df, montecarloconfig.perturbed_vars, vel_x_var, vel_y_var)
 
         if show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
@@ -208,9 +185,41 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         MC_values[(true_value - MC_values)>90] += 180
         MC_values[(true_value - MC_values)<-90] -= 180
 
-    std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=MC_values)
+    #Note this is a pseudo standard deviation: relative to true value as opposed to mean of MC values
+    if montecarloconfig.symmetric:
+        std = np.sqrt(np.nanmean((MC_values-true_value)**2))
+        std_low,std_high = std,std
+    else:
+        std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=MC_values)
     
     return std_low,std_high,MC_values,within_cut
+
+def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None):
+    unexpected_perturbed_vars = [v for v in perturbed_vars if v not in ["pmra","pmdec","d","vr"]]
+    if len(unexpected_perturbed_vars) > 0:
+        raise ValueError(f"Got some unexpected perturbed variables: `{unexpected_perturbed_vars}`")
+    
+    if "pmra" in perturbed_vars or "pmdec" in perturbed_vars:
+        coordinates.pmrapmdec_to_pmlpmb(df)
+        coordinates.pmlpmb_to_vlvb(df)
+    elif "d" in perturbed_vars:
+        coordinates.pmlpmb_to_vlvb(df)
+
+    MC_vx,MC_vy = None,None
+
+    if vel_x_var is not None:
+        if vel_x_var == "vr":
+            MC_vx = df["vr"]
+        else:
+            raise ValueError(f"Velocity extraction undefined for vel_x_var `{vel_x_var}`.")
+
+    if vel_y_var is not None:
+        if vel_y_var == "vl":
+            MC_vy = df["vl"]
+        else:
+            raise ValueError(f"Velocity extraction undefined for vel_y_var `{vel_y_var}`.")
+
+    return MC_vx,MC_vy
 
 def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
@@ -297,3 +306,20 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
         std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=boot_values)
     
     return std_low, std_high, boot_values
+
+def compute_lowhigh_std(true_value, perturbed_values):
+    values_above = perturbed_values[perturbed_values > true_value]
+    values_below = perturbed_values[perturbed_values < true_value]
+    values_equal = perturbed_values[perturbed_values == true_value]
+
+    # divide perturbed values which result equal to the true value proportionally between the above and below values
+    frac_equal_to_above = len(values_above) / (len(values_above) + len(values_below))
+    idx_equal_to_above = int( len(values_equal) * frac_equal_to_above )
+
+    values_above = np.append(values_above, values_equal[:idx_equal_to_above])
+    values_below = np.append(values_below, values_equal[idx_equal_to_above:])
+
+    std_low = np.sqrt(np.mean((values_below - true_value)**2)) if len(values_below) > 0 else 0
+    std_high = np.sqrt(np.mean((values_above - true_value)**2)) if len(values_above) > 0 else 0
+
+    return std_low,std_high
