@@ -51,6 +51,8 @@ def get_units(var):
         return "mas/yr"
     elif var in ["vr","vl","vb","vx","vy","vz","vR","vphi","vM","vm"]:
         return "km/s"
+    elif var in ["tilt_abs","tilt","vertex","vertex_abs"]:
+        return r"$^\circ$"
     elif "_error" in var:
         return get_units(var.removesuffix("_error"))
     elif "_fractionalerror" in var:
