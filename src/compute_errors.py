@@ -65,7 +65,7 @@ def add_equatorial_coord_and_pm_to_df_if_needed(df):
 
     return df
 
-def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=False, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
+def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
 
     if vel_x_var is None and vel_y_var is None:
         raise ValueError("Both velocity components were set to None!")

@@ -29,7 +29,7 @@ def calculate_cov_var_ratio(vx,vy):
 
 # TILTS ------------------------------------------------------------------------------------
 
-def calculate_tilt_from_moments(varx, vary, covxy, absolute=False):
+def calculate_tilt_from_moments(varx, vary, covxy, absolute=True):
     var_diff = abs(varx-vary) if absolute else varx-vary
     tilt = np.degrees(np.arctan2(2.*covxy, var_diff)/2.)
     return tilt
