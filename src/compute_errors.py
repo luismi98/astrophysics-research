@@ -66,6 +66,49 @@ def add_equatorial_coord_and_pm_to_df_if_needed(df):
     return df
 
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
+    """
+    Compute a Monte Carlo error in the statistical variable of interest given individual (one for each star) uncertainties.
+    Given each star, take the value of the variable to be perturbed and add to it a number extracted from a Gaussian of mean 0 and standard
+    deviation the uncertainty in the measurement. Do that for all the stars and repeat R number of times, each time computing the resulting
+    statistic of interest. Compute the mean squared difference between the true value (computed with the original population) and all the 
+    perturbed values.
+
+    Parameters
+    ----------
+    df: pandas dataframe.
+        Dataframe previous to applying any cuts affected by the perturbation (see montecarloconfig).
+    true_value: float
+        Value of the statistic of interest as computed using the unperturbed population (with all cuts applied).
+    montecarloconfig: MonteCarloConfig object
+        See docstring in errorconfig.py
+    vel_x_var, vel_y_var: string or None
+        If string, indicate the horizontal/vertical velocity components. For example, "r" or "l".
+    tilt: boolean
+        Whether the statistic of interest is a tilt (i.e. a vertex deviation).
+    absolute: boolean
+        Whether the tilt uses the absolute value of the dispersion difference. Only has effect if tilt is True.
+    R_hat: tuple or None
+        If a tuple, the statistic of interest is a spherical tilt, and R_hat indicates the 2D coordinates of the center of the bin of selected stars.
+    show_vel_plots: boolean
+        Whether to show a velocity plot of the stars after the perturbation.
+    show_freq: integer
+        Show a velocity plot every show_freq MC repetitions. Only has effect if show_vel_plots is True.
+    velocity_kws: dictionary
+        Keyword arguments for the velocity plot function.
+
+    Returns
+    -------
+    std_low: float
+        Mean squared difference between all the MC values of the statistic of interest and the true value computed from the unperturbed population.
+        If montecarloconfig.symmetric is True, std_low is computed using all the MC values, and it will be identical to std_high. Otherwise,
+        it will be computed using only the MC values below the true value.
+    std_high: float
+        See std_low. If montecarloconfig.symmetric is False, it will be computed using the MC values above the true value.
+    MC_values: array
+        NumPy array containing all the MC values.
+    within_cut: array
+        NumPy boolean array flagging the stars which, after the last perturbation, fell within the montecarloconfig.affected_cuts_dict
+    """
 
     if vel_x_var is None and vel_y_var is None:
         raise ValueError("Both velocity components were set to None!")
@@ -122,7 +165,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
 
         MC_vx, MC_vy = extract_velocities_after_MC(df_helper, montecarloconfig.perturbed_vars, vel_x_var, vel_y_var)
 
-        if show_vel_plots and i%show_freq == 0:
+        if vel_x_var is not None and vel_y_var is not None and show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
 
         MC_values[i] = apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
@@ -156,7 +199,7 @@ def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=No
     if vel_x_var is not None:
         if vel_x_var == "r":
             MC_vx = df["vr"]
-        else: # this is here because extra conversions (e.g. vlvb to vxvy) will be needed to propagate the uncertainties
+        else: # this is here because extra conversions (e.g. vlvb to vxvy) will be needed to propagate the uncertainties to other velocity components
             raise ValueError(f"Velocity extraction undefined for vel_x_var `{vel_x_var}`.")
 
     if vel_y_var is not None:

@@ -28,29 +28,52 @@ class BootstrapConfig():
 class MonteCarloConfig():
     def __init__(self, perturbed_vars, affected_cuts_dict, repeats=500, affected_cuts_lims_dict=None, error_frac=None,symmetric=False,\
                   random_resampling_indices=None):
+        """
+        Parameters
+        ----------
+        perturbed_vars: list of strings
+            List of variables to perturb.
+        error_frac: float or None
+            If float, it is the fractional uncertainty in the measurements.
+            If None, take the error from the actual measurement uncertainties (in the observations).
+        repeats: integer
+            Number of MC repeats.
+        symmetric: boolean
+            If False, the MC method computes the standard deviation for values above and below the true value separately.
+        random_resampling_indices: pandas Index object or None
+            If a pandas Index object, it contains the indices of the stars in the dataframe used to compute the true_value, i.e. after applying
+                                     any of the affected cuts, which were selected after random downsampling. If any of those stars falls outside
+                                     the affected cuts after the perturbation, we incorporate other stars to complete the sample.
+            If None, no downsampling was performed.
+        affected_cuts_dict: dictionary or None
+            Dictionary of cuts, where each key is a variable (str) and the values are a tuple containing the minimum and maximum values,
+            which are affected by the perturbation of any of the perturbed variables. These cuts have to be applied after the MC perturbation
+            as the stars might move across the limit (for example when applying a distance perturbation and wanting a cut on R). 
+            In the calculation of MC values, we exclude/include the stars which fall outside/inside the limits after the perturbation respectively.
+        affected_cuts_lims_dict: dictionary or None
+            Dictionary with the same keys as affected_cuts_dict, where the values are "min", "max", "both" or "neither", indicating the limits
+            that are included in the cut. 
+            If None, or some variables in affected_cuts_dict are not in the keys, the default is "both".
+        """
         
         self.perturbed_vars = perturbed_vars
         self.error_frac = error_frac
         self.repeats = repeats
         self.symmetric = symmetric
-        
-        # When random resampling (without replacement), we perform it before binning (to compute the true values) and here we keep track of
-        # the result of that resampling when applying the MC. After the perturbation, we select the same stars as we did originally for the true values
-        # if they have falled within the affected_cuts_dict. If there are any that now fall outside the range, we incorporate other stars
-        # to complete the sample (i.e. have the same number of stars as in the unperturbed bin)
         self.random_resampling_indices = random_resampling_indices
         
-        # Cuts affected by the perturbed variable have to be applied after the MC perturbation separate as the stars might move across the limit.
-        # We exclude/include the stars which fall outside/inside the limits after the perturbation respectively
-        self.affected_cuts_dict = affected_cuts_dict
+        self.affected_cuts_dict = {} if affected_cuts_dict is None else affected_cuts_dict
+        self.affected_cuts_lims_dict = {} if affected_cuts_lims_dict is None else affected_cuts_lims_dict
         
-        if affected_cuts_lims_dict is None:
-            self.affected_cuts_lims_dict = {}
-            
-            for k in self.affected_cuts_dict:
+        for k in self.affected_cuts_dict:
+            if k not in self.affected_cuts_lims_dict:
                 self.affected_cuts_lims_dict[k] = "both"
                 
     def clean_value_cuts_dict(self, cuts_dict):
+        """
+        Return the provided dictionary after removing the affected cuts, if any.
+        """
+
         if type(cuts_dict) != dict:
             cuts_dict = MF.merge_dictionaries(cuts_dict)
         
