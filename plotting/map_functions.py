@@ -45,7 +45,7 @@ def get_symbol(var):
 def get_units(var):
     if var in ["d","R"]:
         return "kpc"
-    elif var == "FeH":
+    elif var in ["FeH","correlation","anisotropy"]:
         return ""
     elif var in ["pmra","pmdec","pmlcosb","pml","pmb"]:
         return "mas/yr"

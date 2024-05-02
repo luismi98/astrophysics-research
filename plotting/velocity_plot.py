@@ -5,8 +5,8 @@ from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-import compute_variables as CV
-import compute_errors as CE
+import src.compute_variables as CV
+import src.compute_errors as CE
 import utils.miscellaneous_functions as MF
 import plotting.plotting_helpers as PH
 
