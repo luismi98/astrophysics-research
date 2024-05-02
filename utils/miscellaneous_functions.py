@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import json
 
 def prevent_byteorder_error(df):
     for column in df.columns:
@@ -271,3 +272,33 @@ def extract_str_from_cuts_dict(cuts_dict):
         s += f"{return_int_or_dec(cuts_dict[k][0],2)}{k}{return_int_or_dec(cuts_dict[k][1],2)}_"
         
     return s.strip("_")
+
+def save_dic_as_json(dic, filename):
+    with open(filename+".json", 'w') as f:
+        f.write(json.dumps(dic))
+        
+def load_dic_from_json(filename):
+    with open(filename) as f:
+        dic = json.loads(f.read())
+    return dic
+
+def clean_cuts_from_dict(cuts_dict, cuts_to_remove):
+    """
+    Return the provided dictionary after removing the given cuts, if any.
+    """
+
+    if type(cuts_dict) != dict:
+        cuts_dict = merge_dictionaries(cuts_dict)
+    
+    cleaned_dict = {}
+    
+    for k,v in cuts_dict.items():
+        if k in cuts_to_remove:
+            if v == cuts_to_remove[k]:
+                continue
+            else:
+                raise ValueError("A cut to remove had different values in the full dict.")
+            
+        cleaned_dict[k] = v
+    
+    return cleaned_dict

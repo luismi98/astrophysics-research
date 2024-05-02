@@ -68,24 +68,3 @@ class MonteCarloConfig():
         for k in self.affected_cuts_dict:
             if k not in self.affected_cuts_lims_dict:
                 self.affected_cuts_lims_dict[k] = "both"
-                
-    def clean_value_cuts_dict(self, cuts_dict):
-        """
-        Return the provided dictionary after removing the affected cuts, if any.
-        """
-
-        if type(cuts_dict) != dict:
-            cuts_dict = MF.merge_dictionaries(cuts_dict)
-        
-        cleaned_dict = {}
-        
-        for k,v in cuts_dict.items():
-            if k in self.affected_cuts_dict:
-                if v == self.affected_cuts_dict[k]:
-                    continue
-                else:
-                    raise ValueError("An affected cut to the errors had different values in the dict for the values.")
-                
-            cleaned_dict[k] = v
-        
-        return cleaned_dict
