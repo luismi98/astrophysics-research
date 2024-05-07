@@ -162,10 +162,12 @@ def round_one_significant(x):
     number = first_digit * 10**index
     return number * (1 if x>0 else -1)
 
-def merge_dictionaries(dict_list):
-
+def any_duplicate_dict_keys(dict_list):
     all_keys = [k for d in dict_list for k in d.keys()]
-    if len(all_keys) != len(set(all_keys)):
+    return len(all_keys) != len(set(all_keys))
+
+def merge_dictionaries(dict_list):
+    if any_duplicate_dict_keys(dict_list):
         raise ValueError("There were duplicated keys across the given dictionaries. Please use unique keys.")
 
     return {k:v for d in dict_list for k,v in d.items()}
