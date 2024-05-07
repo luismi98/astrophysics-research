@@ -68,9 +68,9 @@ def add_equatorial_coord_and_pm_to_df_if_needed(df):
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
     """
     Compute a Monte Carlo error in the statistical variable of interest given individual (one for each star) uncertainties.
-    Given each star, take the value of the variable to be perturbed and add to it a number extracted from a Gaussian of mean 0 and standard
-    deviation the uncertainty in the measurement. Do that for all the stars and repeat R number of times, each time computing the resulting
-    statistic of interest. Compute the mean squared difference between the true value (computed with the original population) and all the 
+    Given each star, takes the value of the variable to be perturbed and adds to it a number extracted from a Gaussian of mean 0 and standard
+    deviation the uncertainty in the measurement. Does that for all the stars and repeats R number of times, each time computing the resulting
+    statistic of interest. Compute the mean squared difference between the true value (computed from the original population) and all the 
     perturbed values.
 
     Parameters
@@ -179,7 +179,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         std = np.sqrt(np.nanmean((MC_values-true_value)**2))
         std_low,std_high = std,std
     else:
-        std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=MC_values)
+        std_low, std_high = compute_lowhigh_std(central_value=true_value,perturbed_values=MC_values)
     
     return std_low,std_high,MC_values,within_cut
 
@@ -212,16 +212,19 @@ def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=No
 
 def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
-    Computes the standard deviation of a function applied to velocity components using bootstrap resampling.
+    Estimate the bootstrap standard error of a statistic, by computing the standard deviation of its sampling distribution.
 
     Parameters
     ----------
+    function: callable
+        Function used to compute the desired statistic whose error you want to estimate.
+
+    bootstrapconfig: BootstrapConfig object
+        See docstring in errorconfig.py
+
     vx, vy: array-like
         Arrays of desired velocity components. 
         vy=None if only 1 is needed.
-
-    function: callable
-        Function used to compute the desired variable whose error you want to estimate.
 
     tilt: bool, optional
         Boolean variable indicating whether the error is being estimated on a tilt (including spherical tilt). 
@@ -266,7 +269,7 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
 
     bootstrap_size = original_size if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
     
-    boot_values = np.empty(shape=(bootstrapconfig.repeats))
+    boot_values = np.full(shape=(bootstrapconfig.repeats), fill_value=None, dtype=float)
 
     for i in range(bootstrapconfig.repeats):
         bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace = bootstrapconfig.replacement)
@@ -282,33 +285,97 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
             velocity_plot(boot_vx,boot_vy,**velocity_kws)
             
         boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
+
+    assert None not in boot_values, "Some bootstrap values were not filled correctly."
     
     if tilt and not absolute:
         boot_values[(true_value - boot_values)>90] += 180
         boot_values[(true_value - boot_values)<-90] -= 180
     
-    #Note this is a pseudo standard deviation: relative to true value as opposed to mean of bootstrap values
     if bootstrapconfig.symmetric:
-        std = np.sqrt(np.nanmean((boot_values-true_value)**2))
+        std = np.std(boot_values)
         std_low,std_high = std,std
     else:
-        std_low, std_high = compute_lowhigh_std(true_value=true_value,perturbed_values=boot_values)
-    
+        std_low, std_high = compute_lowhigh_std(central_value=np.mean(boot_values),perturbed_values=boot_values)
+
     return std_low, std_high, boot_values
 
-def compute_lowhigh_std(true_value, perturbed_values):
-    values_above = perturbed_values[perturbed_values > true_value]
-    values_below = perturbed_values[perturbed_values < true_value]
-    values_equal = perturbed_values[perturbed_values == true_value]
+def get_std_bootstrap_recursive(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
+    """
+    This function does the same as get_std_bootstrap above, but it computes the bootstrap standard error of both the original population and of
+    each of the bootstrap samples.
+    It can be used to test the key assumption of bootstrapping. The bootstrap attempts to estimate the standard error of a population using a
+    discrete sample from it, under the assumption that the sample is representative of the population. If this assumptions holds true, the 
+    simulated/theoretical standard error and the bootstrap standard error should be similar. Otherwise, one may find that the bootstrap standard 
+    error underestimates the standard error (because the sample does not properly capture the variability of the underlying population) or 
+    overestimates it.
+    This function allows you to compute both so they can be compared. To compute the standard error of the desired statistic for samples
+    of N stars, vx and vy should be given from the total population (which has number of stars >> N), and bootstrapconfig.bootstrap_size should be N.
+    After computing the statistic for each sample for many bootstrap repeats, the standard deviation of the resulting distribution (the sampling
+    distribution of the statistic) is the standard error. The bootstrap standard error is computed for each of the N-sized samples and also given.
+    One may then compare the standard error and perhaps the mean of the bootstrap standard errors to check whether on average the latter 
+    matches/overestimates/underestimates the actual standard error.
+    """
 
-    # divide perturbed values which result equal to the true value proportionally between the above and below values
+
+    if vx is None and vy is None:
+        raise ValueError("At least one of vx and vy must not be None.")
+
+    true_value = apply_function(function,vx,vy,R_hat,tilt,absolute)
+
+    original_size = len(vx) if vx is not None else len(vy)
+    indices_range = np.arange(original_size)
+
+    bootstrap_size = original_size if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
+    
+    boot_values = np.full(shape=(bootstrapconfig.repeats), fill_value=None, dtype=float)
+
+    nested_boot_errors = np.full(shape=(bootstrapconfig.repeats), fill_value=None, dtype=float)
+
+    for i in range(bootstrapconfig.repeats):
+        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace = bootstrapconfig.replacement)
+        
+        boot_vx,boot_vy = None,None
+
+        if vx is not None:
+            boot_vx = vx[bootstrap_indices]
+        if vy is not None:
+            boot_vy = vy[bootstrap_indices]
+        
+        if show_vel_plots and i%show_freq == 0 and boot_vx is not None and boot_vy is not None:
+            velocity_plot(boot_vx,boot_vy,**velocity_kws)
+            
+        boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
+
+        nested_boot_errors[i],*_ = get_std_bootstrap(function=function,bootstrapconfig=bootstrapconfig,vx=boot_vx,vy=boot_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
+    
+    assert None not in boot_values and None not in nested_boot_errors, "Some bootstrap values / nested errors were not filled correctly."
+
+    if tilt and not absolute:
+        boot_values[(true_value - boot_values)>90] += 180
+        boot_values[(true_value - boot_values)<-90] -= 180
+    
+    if bootstrapconfig.symmetric:
+        std = np.std(boot_values)
+        std_low,std_high = std,std
+    else:
+        std_low, std_high = compute_lowhigh_std(central_value=np.mean(boot_values),perturbed_values=boot_values)
+    
+    return std_low, std_high, boot_values, nested_boot_errors
+
+def compute_lowhigh_std(central_value, perturbed_values):
+    values_above = perturbed_values[perturbed_values > central_value]
+    values_below = perturbed_values[perturbed_values < central_value]
+    values_equal = perturbed_values[perturbed_values == central_value]
+
+    # divide perturbed values which result equal to the mean proportionally between the above and below values
     frac_equal_to_above = len(values_above) / (len(values_above) + len(values_below))
     idx_equal_to_above = int( len(values_equal) * frac_equal_to_above )
 
     values_above = np.append(values_above, values_equal[:idx_equal_to_above])
     values_below = np.append(values_below, values_equal[idx_equal_to_above:])
 
-    std_low = np.sqrt(np.mean((values_below - true_value)**2)) if len(values_below) > 0 else 0
-    std_high = np.sqrt(np.mean((values_above - true_value)**2)) if len(values_above) > 0 else 0
+    std_low = np.sqrt(np.mean((values_below - central_value)**2)) if len(values_below) > 0 else 0
+    std_high = np.sqrt(np.mean((values_above - central_value)**2)) if len(values_above) > 0 else 0
 
-    return std_low,std_high
+    return std_low, std_high
