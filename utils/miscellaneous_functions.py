@@ -64,11 +64,6 @@ def format_number_with_commas(number):
         
     return number_str_commas
 
-def mc_perturb(data, error):
-    #Data should be something like the v_r component of stars in an ellipse distribution. Each with an associated uncertainty in the error array
-    #It returns an array of the same shape, where the elements are numbers drawn from a gaussian distribution centered in the datapoint, with standard deviation of the associated error
-    return np.random.normal(data, error)
-
 def create_dir(save_path):
     if not os.path.isdir(save_path):
         os.mkdir(save_path)
@@ -304,3 +299,47 @@ def clean_cuts_from_dict(cuts_dict, cuts_to_remove):
         cleaned_dict[k] = v
     
     return cleaned_dict
+
+def combine_multiple_cut_dicts_into_str(all_cuts, cut_separator="_", order_separator="/"):
+    """
+    Given a dict or list of dicts containing spatial cuts, it builds a string like so:
+    f"<height cut>/<depth cut>/<width cut>/<pop cut>" (if any), with the separator given by order_separator,
+    and where: 
+    - height is "b" or "z"
+    - depth is "R", "d" or "x"
+    - width is "l" or "y"
+    - pop is "age" or "FeH"
+    If multiple cuts of a given order are given, they are separated by cut_separator.
+    """
+    
+    def add_path_parts(cut, orders, path_parts):
+        for key, ranges in cut.items():
+            for order, keys in orders.items():
+                if key in keys:
+                    range_string = f"{ranges[0]}{key}{ranges[1]}"
+                    path_parts[order].add(range_string)
+                    break
+    
+    orders = {
+        0: ["b", "z"],
+        1: ["d", "R", "x"],
+        2: ["l", "y"],
+        3: ["age", "FeH"]
+    }
+    
+    path_parts = {o: set() for o in orders}
+    
+    if type(all_cuts) == list:
+        for cut in all_cuts:
+            add_path_parts(cut, orders, path_parts)
+    else:
+        add_path_parts(all_cuts, orders, path_parts)
+    
+    segments = []
+    for order in sorted(path_parts):
+        if path_parts[order]:
+            segments.append(cut_separator.join(sorted(path_parts[order])))
+    
+    full_str = order_separator.join(segments)
+    
+    return full_str
