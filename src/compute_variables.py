@@ -5,38 +5,56 @@ import plotting.mixed_plots as MP
 
 # Note in all the code in this file vx & vy are placeholders for any desired velocity components.
 
-# TRIVIAL FUNCTIONS -------------------------------------------------------------------------
+def calculate_mean(vx, keepdims = False):
+    return np.mean(vx, axis=-1, keepdims=keepdims)
+
+def calculate_var(vx, keepdims = False):
+    return np.var(vx, axis=-1, keepdims=keepdims)
 
 def calculate_covariance(vx,vy):
-    cov = np.cov(vx,vy)
-    return cov[0,1]
+    """
+    Calculate pair-wise covariance over the last axis of the vx and vy arrays.
+
+    Examples
+    --------
+    Uni-dimensional velocity components
+
+    >>> vx,vy = [1,2,3],[1,2,3]
+    >>> calculate_covariance(vx,vy)
+    0.6666666666666666
+
+    Several pairs of samples (5), with each sample of size 10.
+
+    >>> vx,vy = np.random.normal(size=(2,5,10))
+    >>> calculate_covariance(vx,vy)
+    array([ 0.26500959,  0.2597704 ,  0.00100958, -0.17017883,  0.09466613])
+    >>> calculate_covariance(vx,vy).shape
+    (5,)
+    """
+
+    mean_x = calculate_mean(vx, keepdims=True)
+    mean_y = calculate_mean(vy, keepdims=True)
+
+    cov_xy = np.mean((vx - mean_x) * (vy - mean_y), axis=-1)
+    return cov_xy
 
 def calculate_correlation(vx,vy):
-    return np.corrcoef(vx,vy)[0,1]
+    return calculate_covariance(vx,vy) / np.sqrt( calculate_var(vx) * calculate_var(vy) )
 
 def calculate_anisotropy(vx,vy):
-    cov = np.cov(vx,vy)
-    return 1-cov[1,1]/cov[0,0]
-
-def calculate_var_diff(vx,vy):
-    cov = np.cov(vx,vy)
-    return cov[0,0]-cov[1,1]
-
-def calculate_cov_var_ratio(vx,vy):
-    cov = np.cov(vx,vy)
-    return 2*cov[0,1]/(cov[0,0]-cov[1,1])
+    return 1 - calculate_var(vx) * calculate_var(vy)
 
 # TILTS ------------------------------------------------------------------------------------
 
 def calculate_tilt_from_moments(varx, vary, covxy, absolute=True):
-    var_diff = abs(varx-vary) if absolute else varx-vary
+    var_diff = np.abs(varx-vary) if absolute else varx-vary
     tilt = np.degrees(np.arctan2(2.*covxy, var_diff)/2.)
     return tilt
 
 def calculate_tilt(vx, vy, absolute=True):
     """
-    I use the name "tilt" as synonym for "vertex deviation". If absolute=False, the tilt is the angle the semi-major axis of the velocity ellipse makes with the
-    horizontal velocity axis direction, vx, (eg line-of-sight direction if working with vrvl velocities), and its range is (-90,90] deg. 
+    I use the name "tilt" as synonym for "vertex deviation". If absolute=False, the tilt is the angle the semi-major axis of the velocity ellipse makes with vx, the
+    horizontal velocity axis direction, (eg vr, the line-of-sight direction, if working with vrvl velocities), and its range is (-90,90] deg. 
     
     If absolute=True, the function takes the absolute value of the dispersion difference before computing the tilt, and the range is reduced to [-45,45] deg.
     In this case, the tilt is the angle that the semi-major axis of the velocity ellipse makes with the coordinate axis that it is closest to.
@@ -44,9 +62,7 @@ def calculate_tilt(vx, vy, absolute=True):
     The sign of the tilt is the same independent of `absolute`, and always equal to the sign of the correlation. If positive, the semi-major axis falls
     within the 1st (& 3rd) quadrant of the vx-vy plane. If negative, it falls on the 4th (& 2nd) quadrant.
     """
-
-    cov = np.cov(vx, vy)
-    return calculate_tilt_from_moments(cov[0,0],cov[1,1],cov[0,1],absolute=absolute)
+    return calculate_tilt_from_moments( calculate_var(vx), calculate_var(vy), calculate_covariance(vx,vy), absolute=absolute )
 
 def calculate_spherical_tilt(vx,vy,R_hat,absolute=False):
     """
