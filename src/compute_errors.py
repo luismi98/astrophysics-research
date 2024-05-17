@@ -1,6 +1,10 @@
 import numpy as np
 import copy
+import warnings
+import scipy.stats as stats
+from collections import namedtuple
 
+import src.compute_variables as CV
 from plotting.velocity_plot import velocity_plot
 import utils.coordinates as coordinates
 import utils.miscellaneous_functions as MF
@@ -16,6 +20,8 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
             return function(vx,vy) if vx is not None and vy is not None else function(vx if vx is not None else vy)
     else:
         return function(vx,vy,R_hat,absolute=absolute)
+
+######################################################## MEASUREMENT UNCERTAINTY MONTE CARLO PROPAGATION ###############################################################
 
 def apply_MC(df, var, error_frac):
     if error_frac is None and var+"_error" not in df:
@@ -67,16 +73,21 @@ def add_equatorial_coord_and_pm_to_df_if_needed(df):
 
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
     """
-    Compute a Monte Carlo error in the statistical variable of interest given individual (one for each star) uncertainties.
-    Given each star, takes the value of the variable to be perturbed and adds to it a number extracted from a Gaussian of mean 0 and standard
-    deviation the uncertainty in the measurement. Does that for all the stars and repeats R number of times, each time computing the resulting
-    statistic of interest. Compute the mean squared difference between the true value (computed from the original population) and all the 
-    perturbed values.
+    Compute a Monte Carlo error in the statistical variable of interest given individual uncertainties (one for each star), like so:
+        1. Given each star, take the value of the variable to be perturbed and adds to it a number extracted from a Gaussian of mean 0 and standard
+            deviation the uncertainty in the measurement. 
+        2. Do that for all the stars and repeat R number of times, each time computing the resulting statistic of interest. 
+        3. Split the distribution in two groups, for values below and above the true value.
+        4. Values exactly equal to the true value are divided proportionally between the below and above split.
+        5. Separately for the below and above splits, compute the mean squared deviation of the MC values from the true value.
+            If not done separately, this would be equivalent to adding the standard deviation of the MC distribution and its bias,
+             which is the difference between the mean of the MC distribution and the true value, in quadrature: https://stats.stackexchange.com/questions/646916
+        6. The left and right limits of the confidence interval are then given as the square root of the mean squared left/right deviations from step 5.
 
     Parameters
     ----------
     df: pandas dataframe.
-        Dataframe previous to applying any cuts affected by the perturbation (see montecarloconfig).
+        Dataframe previous to applying any cuts affected by the perturbation (see montecarloconfig docstring).
     true_value: float
         Value of the statistic of interest as computed using the unperturbed population (with all cuts applied).
     montecarloconfig: MonteCarloConfig object
@@ -98,14 +109,13 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
 
     Returns
     -------
-    std_low: float
-        Mean squared difference between all the MC values of the statistic of interest and the true value computed from the unperturbed population.
-        If montecarloconfig.symmetric is True, std_low is computed using all the MC values, and it will be identical to std_high. Otherwise,
-        it will be computed using only the MC values below the true value.
-    std_high: float
-        See std_low. If montecarloconfig.symmetric is False, it will be computed using the MC values above the true value.
+    confidence_interval: tuple
+        The left,right limits of the confidence interval of the true value. They are given as a distance from the true value.
+        The confidence intervals are 1 pseudo-std (see explanation above), resulting from adding the mean of the MC values and the bias in quadrature.
     MC_values: array
         NumPy array containing all the MC values.
+    bias: float
+        The difference between the mean of the MC distribution and the true value.
     within_cut: array
         NumPy boolean array flagging the stars which, after the last perturbation, fell within the montecarloconfig.affected_cuts_dict
     """
@@ -174,14 +184,15 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         MC_values[(true_value - MC_values)>90] += 180
         MC_values[(true_value - MC_values)<-90] -= 180
 
-    #Note this is a pseudo standard deviation: relative to true value as opposed to mean of MC values
     if montecarloconfig.symmetric:
-        std = np.sqrt(np.nanmean((MC_values-true_value)**2))
-        std_low,std_high = std,std
+        pseudo_std = np.sqrt(np.nanmean((MC_values-true_value)**2))
+        CI_low,CI_high = pseudo_std,pseudo_std
     else:
-        std_low, std_high = compute_lowhigh_std(central_value=true_value,perturbed_values=MC_values)
+        CI_low, CI_high = compute_lowhigh_std(central_value=true_value, values=MC_values)
+
+    Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
     
-    return std_low,std_high,MC_values,within_cut
+    return Result(confidence_interval=(CI_low,CI_high), MC_distribution=MC_values, bias=np.mean(MC_values)-true_value, within_cut=within_cut)
 
 def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None):
     unexpected_perturbed_vars = [v for v in perturbed_vars if v not in ["pmra","pmdec","d","vr"]]
@@ -210,9 +221,17 @@ def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=No
 
     return MC_vx,MC_vy
 
-def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
+################################################################### BOOTSTRAPPING #############################################################################
+
+def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None, show_vel_plots=False,show_freq=10,velocity_kws={}):
     '''
-    Estimate the bootstrap standard error of a statistic, by computing the standard deviation of its sampling distribution.
+    Estimate the confidence interval of your sample estimate using bootstrapping. The confidence interval takes into account both bias and skew. It is obtained the following way:
+        1. Build the bootstrap distribution.
+        2. Split the distribution in two groups, for values below and above the original sample estimate.
+        3. Values exactly equal to the original sample estimate are divided proportionally between the below and above split.
+        4. Separately for the below and above splits, compute the mean squared deviation of the bootstrap esimates from the original sample estimate.
+            If not done separately, this would be equivalent to adding the bootstrap standard error and the bias in quadrature: https://stats.stackexchange.com/questions/646916
+        5. The left and right limits of the confidence interval are then given as the square root of the mean squared left/right deviations from step 4.
 
     Parameters
     ----------
@@ -252,27 +271,34 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
 
     Returns
     -------
-    std: float
-        The estimated standard deviation.
-
+    confidence_interval: tuple
+        The left,right limits of the confidence interval of the original sample estimate. They are given as a distance from the original sample estimate.
+        The confidence intervals are 1 pseudo-std (see explanation above), resulting from adding the standard error and bias in quadrature.
+    
     boot_values: array-like
         The bootstrap values.
+    
+    std: float
+        The bootstrap standard error, computed as the standard deviation of the bootstrap distribution.
+
+    bias: float
+        The difference between the mean of the bootstrap distribution and the original sample estimate.
     '''
     
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
 
-    true_value = apply_function(function,vx,vy,R_hat,tilt,absolute)
+    original_sample_estimate = apply_function(function,vx,vy,R_hat,tilt,absolute)
 
-    original_size = len(vx) if vx is not None else len(vy)
-    indices_range = np.arange(original_size)
+    original_sample_size = len(vx) if vx is not None else len(vy)
+    indices_range = np.arange(original_sample_size)
 
-    bootstrap_size = original_size if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
+    bootstrap_sample_size = original_sample_size if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
     
     boot_values = np.full(shape=(bootstrapconfig.repeats), fill_value=None, dtype=float)
 
     for i in range(bootstrapconfig.repeats):
-        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace = bootstrapconfig.replacement)
+        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_sample_size, replace = bootstrapconfig.replacement)
         
         boot_vx,boot_vy = None,None
 
@@ -289,51 +315,53 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
     assert None not in boot_values, "Some bootstrap values were not filled correctly."
     
     if tilt and not absolute:
-        boot_values[(true_value - boot_values)>90] += 180
-        boot_values[(true_value - boot_values)<-90] -= 180
-    
+        boot_values[(original_sample_estimate - boot_values)>90] += 180
+        boot_values[(original_sample_estimate - boot_values)<-90] -= 180
+
     if bootstrapconfig.symmetric:
-        std = np.std(boot_values)
-        std_low,std_high = std,std
+        pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
+        CI_low,CI_high = pseudo_std,pseudo_std
     else:
-        std_low, std_high = compute_lowhigh_std(central_value=np.mean(boot_values),perturbed_values=boot_values)
+        CI_low, CI_high = compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
 
-    return std_low, std_high, boot_values
+    Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
+    
+    return Result(confidence_interval=(CI_low,CI_high), bootstrap_distribution=boot_values, standard_error=np.std(boot_values), bias=np.mean(boot_values)-original_sample_estimate)
 
-def get_std_bootstrap_recursive(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
+def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=None,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,show_vel_plots=False,show_freq=10,velocity_kws={}):
     """
-    This function does the same as get_std_bootstrap above, but it computes the bootstrap standard error of both the original population and of
-    each of the bootstrap samples.
-    It can be used to test the key assumption of bootstrapping. The bootstrap attempts to estimate the standard error of a population using a
-    discrete sample from it, under the assumption that the sample is representative of the population. If this assumptions holds true, the 
-    simulated/theoretical standard error and the bootstrap standard error should be similar. Otherwise, one may find that the bootstrap standard 
-    error underestimates the standard error (because the sample does not properly capture the variability of the underlying population) or 
-    overestimates it.
+    This function does the same as get_std_bootstrap above but on two depth levels: for the original sample (or population) and for each of the bootstrap samples.
+
+    It can be used to test the key assumption of bootstrapping, which is that the sample you are working with is representative of the underlying population. 
+    If this assumptions holds true, the standard error (standard deviation of the sampling distribution, extracted from the population) and the bootstrap 
+    standard error (standard deviation of the bootstrap distribution) should be similar. Otherwise, one may find that the bootstrap standard error 
+    underestimates the standard error (because the sample does not properly capture the variability of the underlying population) or overestimates it.
+    
     This function allows you to compute both so they can be compared. To compute the standard error of the desired statistic for samples
     of N stars, vx and vy should be given from the total population (which has number of stars >> N), and bootstrapconfig.bootstrap_size should be N.
-    After computing the statistic for each sample for many bootstrap repeats, the standard deviation of the resulting distribution (the sampling
+    After computing the statistic for each sample for many repeats, the standard deviation of the resulting distribution (the sampling
     distribution of the statistic) is the standard error. The bootstrap standard error is computed for each of the N-sized samples and also given.
     One may then compare the standard error and perhaps the mean of the bootstrap standard errors to check whether on average the latter 
-    matches/overestimates/underestimates the actual standard error.
+    matche/overestimate/underestimate the actual standard error.
     """
-
 
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
+    if nested_bootstrapconfig is None:
+        nested_bootstrapconfig = bootstrapconfig
 
-    true_value = apply_function(function,vx,vy,R_hat,tilt,absolute)
+    original_sample_estimate = apply_function(function,vx,vy,R_hat,tilt,absolute)
 
-    original_size = len(vx) if vx is not None else len(vy)
-    indices_range = np.arange(original_size)
+    original_sample_ize = len(vx) if vx is not None else len(vy)
+    indices_range = np.arange(original_sample_ize)
 
-    bootstrap_size = original_size if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
+    bootstrap_sample_size = original_sample_ize if bootstrapconfig.bootstrap_size is None else bootstrapconfig.bootstrap_size
     
     boot_values = np.full(shape=(bootstrapconfig.repeats), fill_value=None, dtype=float)
-
     nested_boot_errors = np.full(shape=(bootstrapconfig.repeats), fill_value=None, dtype=float)
 
     for i in range(bootstrapconfig.repeats):
-        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_size, replace = bootstrapconfig.replacement)
+        bootstrap_indices = np.random.choice(indices_range, size = bootstrap_sample_size, replace = bootstrapconfig.replacement)
         
         boot_vx,boot_vy = None,None
 
@@ -347,35 +375,70 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,vx=None,vy=None,tilt=Fa
             
         boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
 
-        nested_boot_errors[i],*_ = get_std_bootstrap(function=function,bootstrapconfig=bootstrapconfig,vx=boot_vx,vy=boot_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
+        nested_boot_errors[i],*_ = get_std_bootstrap(function=function,bootstrapconfig=nested_bootstrapconfig,vx=boot_vx,vy=boot_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
     
     assert None not in boot_values and None not in nested_boot_errors, "Some bootstrap values / nested errors were not filled correctly."
 
     if tilt and not absolute:
-        boot_values[(true_value - boot_values)>90] += 180
-        boot_values[(true_value - boot_values)<-90] -= 180
-    
+        boot_values[(original_sample_estimate - boot_values)>90] += 180
+        boot_values[(original_sample_estimate - boot_values)<-90] -= 180
+
     if bootstrapconfig.symmetric:
-        std = np.std(boot_values)
-        std_low,std_high = std,std
+        pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
+        CI_low,CI_high = pseudo_std,pseudo_std
     else:
-        std_low, std_high = compute_lowhigh_std(central_value=np.mean(boot_values),perturbed_values=boot_values)
+        CI_low, CI_high = compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
+
+    Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
-    return std_low, std_high, boot_values, nested_boot_errors
+    return Result(confidence_interval=(CI_low,CI_high), bootstrap_distribution=boot_values, standard_error=np.std(boot_values), bias=np.mean(boot_values)-original_sample_estimate)
 
-def compute_lowhigh_std(central_value, perturbed_values):
-    values_above = perturbed_values[perturbed_values > central_value]
-    values_below = perturbed_values[perturbed_values < central_value]
-    values_equal = perturbed_values[perturbed_values == central_value]
+def compute_lowhigh_std(central_value, values):
+    values = np.array(values)
 
-    # divide perturbed values which result equal to the mean proportionally between the above and below values
+    values_above = values[values > central_value]
+    values_below = values[values < central_value]
+    values_equal = values[values == central_value]
+
+    # divide values equal to the central value proportionally between the above and below splits
     frac_equal_to_above = len(values_above) / (len(values_above) + len(values_below))
     idx_equal_to_above = int( len(values_equal) * frac_equal_to_above )
 
     values_above = np.append(values_above, values_equal[:idx_equal_to_above])
     values_below = np.append(values_below, values_equal[idx_equal_to_above:])
 
-    std_low = np.sqrt(np.mean((values_below - central_value)**2)) if len(values_below) > 0 else 0
-    std_high = np.sqrt(np.mean((values_above - central_value)**2)) if len(values_above) > 0 else 0
+    if 0 < len(values_above) < 0.01*len(values):
+        warnings.warn(f"Less than 1% of the values, namely {len(values_above)}, are above the central value. The corresponding std could be misleading as a result.")
+    if 0 < len(values_below) < 0.01*len(values):
+        warnings.warn(f"Less than 1% of the values, namely {len(values_below)}, are below the central value. The corresponding std could be misleading as a result.")
+
+    std_low = np.sqrt(np.nanmean((values_below - central_value)**2)) if len(values_below) > 0 else 0
+    std_high = np.sqrt(np.nanmean((values_above - central_value)**2)) if len(values_above) > 0 else 0
 
     return std_low, std_high
+
+################################################################################################################################################
+
+def get_error_vertex_deviation_roca_fabrega(n,vx,vy):
+    """
+    Expression from Roca-Fabrega et al. (2014), at https://doi.org/10.1093/mnras/stu437
+    """
+
+    mu_110 = CV.calculate_covariance(vx,vy)
+    mu_200 = np.var(vx)
+    mu_020 = np.var(vy)
+    mu_220 = np.mean( (vx-np.mean(vx))**2 * (vy-np.mean(vy))**2 )
+    mu_400 = stats.moment(vx,moment=4)
+    mu_040 = stats.moment(vy,moment=4)
+
+    a1 = 2/(n-1)-3/n
+    a2 = 1/(n-1)-2/n
+    a3 = 1/(n-1)-1/n
+    a4 = 1/(mu_110*(a1+4))
+    b1 = (mu_400+mu_040)/n
+    b2 = mu_200**2 + mu_020**2
+    b3 = (mu_200-mu_020)**2 / mu_110**2
+    
+    parenthesis = mu_220/n + mu_110**2 * a2 + mu_200*mu_020*a3
+
+    return np.abs(a4) * np.sqrt(b1 + a1*b2 + b3*parenthesis)
