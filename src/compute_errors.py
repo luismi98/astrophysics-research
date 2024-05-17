@@ -1,6 +1,5 @@
 import numpy as np
 import copy
-import warnings
 import scipy.stats as stats
 from collections import namedtuple
 
@@ -8,20 +7,7 @@ import src.compute_variables as CV
 from plotting.velocity_plot import velocity_plot
 import utils.coordinates as coordinates
 import utils.miscellaneous_functions as MF
-
-def apply_function(function, vx, vy, R_hat, tilt, absolute):
-    if vx is None and vy is None:
-        raise ValueError("At least one of vx and vy must not be None.")
-
-    if R_hat is None:
-        if tilt:
-            return function(vx,vy,absolute)
-        else:
-            return function(vx,vy) if vx is not None and vy is not None else function(vx if vx is not None else vy)
-    else:
-        return function(vx,vy,R_hat,absolute=absolute)
-
-######################################################## MEASUREMENT UNCERTAINTY MONTE CARLO PROPAGATION ###############################################################
+import utils.error_helpers as EH
 
 def apply_MC(df, var, error_frac):
     if error_frac is None and var+"_error" not in df:
@@ -178,7 +164,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         if vel_x_var is not None and vel_y_var is not None and show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
 
-        MC_values[i] = apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
+        MC_values[i] = EH.apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
 
     if tilt and not absolute:
         MC_values[(true_value - MC_values)>90] += 180
@@ -188,7 +174,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         pseudo_std = np.sqrt(np.nanmean((MC_values-true_value)**2))
         CI_low,CI_high = pseudo_std,pseudo_std
     else:
-        CI_low, CI_high = compute_lowhigh_std(central_value=true_value, values=MC_values)
+        CI_low, CI_high = EH.compute_lowhigh_std(central_value=true_value, values=MC_values)
 
     Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
     
@@ -288,7 +274,7 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
 
-    original_sample_estimate = apply_function(function,vx,vy,R_hat,tilt,absolute)
+    original_sample_estimate = EH.apply_function(function,vx,vy,R_hat,tilt,absolute)
 
     original_sample_size = len(vx) if vx is not None else len(vy)
     indices_range = np.arange(original_sample_size)
@@ -310,7 +296,7 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
         if show_vel_plots and i%show_freq == 0 and boot_vx is not None and boot_vy is not None:
             velocity_plot(boot_vx,boot_vy,**velocity_kws)
             
-        boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
+        boot_values[i] = EH.apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
 
     assert None not in boot_values, "Some bootstrap values were not filled correctly."
     
@@ -322,7 +308,7 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
         pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
         CI_low,CI_high = pseudo_std,pseudo_std
     else:
-        CI_low, CI_high = compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
+        CI_low, CI_high = EH.compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
 
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
@@ -350,7 +336,7 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
     if nested_bootstrapconfig is None:
         nested_bootstrapconfig = bootstrapconfig
 
-    original_sample_estimate = apply_function(function,vx,vy,R_hat,tilt,absolute)
+    original_sample_estimate = EH.apply_function(function,vx,vy,R_hat,tilt,absolute)
 
     original_sample_ize = len(vx) if vx is not None else len(vy)
     indices_range = np.arange(original_sample_ize)
@@ -373,7 +359,7 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
         if show_vel_plots and i%show_freq == 0 and boot_vx is not None and boot_vy is not None:
             velocity_plot(boot_vx,boot_vy,**velocity_kws)
             
-        boot_values[i] = apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
+        boot_values[i] = EH.apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
 
         nested_boot_errors[i],*_ = get_std_bootstrap(function=function,bootstrapconfig=nested_bootstrapconfig,vx=boot_vx,vy=boot_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
     
@@ -387,35 +373,11 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
         pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
         CI_low,CI_high = pseudo_std,pseudo_std
     else:
-        CI_low, CI_high = compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
+        CI_low, CI_high = EH.compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
 
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
     return Result(confidence_interval=(CI_low,CI_high), bootstrap_distribution=boot_values, standard_error=np.std(boot_values), bias=np.mean(boot_values)-original_sample_estimate)
-
-def compute_lowhigh_std(central_value, values):
-    values = np.array(values)
-
-    values_above = values[values > central_value]
-    values_below = values[values < central_value]
-    values_equal = values[values == central_value]
-
-    # divide values equal to the central value proportionally between the above and below splits
-    frac_equal_to_above = len(values_above) / (len(values_above) + len(values_below))
-    idx_equal_to_above = int( len(values_equal) * frac_equal_to_above )
-
-    values_above = np.append(values_above, values_equal[:idx_equal_to_above])
-    values_below = np.append(values_below, values_equal[idx_equal_to_above:])
-
-    if 0 < len(values_above) < 0.01*len(values):
-        warnings.warn(f"Less than 1% of the values, namely {len(values_above)}, are above the central value. The corresponding std could be misleading as a result.")
-    if 0 < len(values_below) < 0.01*len(values):
-        warnings.warn(f"Less than 1% of the values, namely {len(values_below)}, are below the central value. The corresponding std could be misleading as a result.")
-
-    std_low = np.sqrt(np.nanmean((values_below - central_value)**2)) if len(values_below) > 0 else 0
-    std_high = np.sqrt(np.nanmean((values_above - central_value)**2)) if len(values_above) > 0 else 0
-
-    return std_low, std_high
 
 ################################################################################################################################################
 
