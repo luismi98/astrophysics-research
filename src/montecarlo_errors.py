@@ -55,6 +55,33 @@ def add_equatorial_coord_and_pm_to_df_if_needed(df):
 
     return df
 
+def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None):
+    unexpected_perturbed_vars = [v for v in perturbed_vars if v not in ["pmra","pmdec","d","vr"]]
+    if len(unexpected_perturbed_vars) > 0:
+        raise ValueError(f"Got some unexpected perturbed variables: `{unexpected_perturbed_vars}`")
+    
+    if "pmra" in perturbed_vars or "pmdec" in perturbed_vars:
+        coordinates.pmrapmdec_to_pmlpmb(df)
+        coordinates.pmlpmb_to_vlvb(df)
+    elif "d" in perturbed_vars:
+        coordinates.pmlpmb_to_vlvb(df)
+
+    MC_vx,MC_vy = None,None
+
+    if vel_x_var is not None:
+        if vel_x_var == "r":
+            MC_vx = df["vr"]
+        else: # this is here because extra conversions (e.g. vlvb to vxvy) will be needed to propagate the uncertainties to other velocity components
+            raise ValueError(f"Velocity extraction undefined for vel_x_var `{vel_x_var}`.")
+
+    if vel_y_var is not None:
+        if vel_y_var == "l":
+            MC_vy = df["vl"]
+        else:
+            raise ValueError(f"Velocity extraction undefined for vel_y_var `{vel_y_var}`.")
+
+    return MC_vx,MC_vy
+
 def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
     """
     Compute a Monte Carlo error in the statistical variable of interest given individual uncertainties (one for each star), like so:
@@ -167,39 +194,8 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     if tilt and not absolute:
         EH.correct_tilt_branch(MC_values, true_value)
 
-    if montecarloconfig.symmetric:
-        pseudo_std = np.sqrt(np.nanmean((MC_values-true_value)**2))
-        CI_low,CI_high = pseudo_std,pseudo_std
-    else:
-        CI_low, CI_high = EH.compute_lowhigh_std(central_value=true_value, values=MC_values)
+    CI_low, CI_high = EH.build_confidence_interval(MC_values, true_value, symmetric=montecarloconfig.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
     
     return Result(confidence_interval=(CI_low,CI_high), MC_distribution=MC_values, bias=np.mean(MC_values)-true_value, within_cut=within_cut)
-
-def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None):
-    unexpected_perturbed_vars = [v for v in perturbed_vars if v not in ["pmra","pmdec","d","vr"]]
-    if len(unexpected_perturbed_vars) > 0:
-        raise ValueError(f"Got some unexpected perturbed variables: `{unexpected_perturbed_vars}`")
-    
-    if "pmra" in perturbed_vars or "pmdec" in perturbed_vars:
-        coordinates.pmrapmdec_to_pmlpmb(df)
-        coordinates.pmlpmb_to_vlvb(df)
-    elif "d" in perturbed_vars:
-        coordinates.pmlpmb_to_vlvb(df)
-
-    MC_vx,MC_vy = None,None
-
-    if vel_x_var is not None:
-        if vel_x_var == "r":
-            MC_vx = df["vr"]
-        else: # this is here because extra conversions (e.g. vlvb to vxvy) will be needed to propagate the uncertainties to other velocity components
-            raise ValueError(f"Velocity extraction undefined for vel_x_var `{vel_x_var}`.")
-
-    if vel_y_var is not None:
-        if vel_y_var == "l":
-            MC_vy = df["vl"]
-        else:
-            raise ValueError(f"Velocity extraction undefined for vel_y_var `{vel_y_var}`.")
-
-    return MC_vx,MC_vy

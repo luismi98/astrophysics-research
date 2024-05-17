@@ -98,11 +98,7 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
     if tilt and not absolute:
         EH.correct_tilt_branch(boot_values, original_sample_estimate)
 
-    if bootstrapconfig.symmetric:
-        pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
-        CI_low,CI_high = pseudo_std,pseudo_std
-    else:
-        CI_low, CI_high = EH.compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
+    CI_low, CI_high = EH.build_confidence_interval(boot_values, original_sample_estimate, symmetric=bootstrapconfig.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
@@ -162,11 +158,7 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
     if tilt and not absolute:
         EH.correct_tilt_branch(boot_values, original_sample_estimate)
 
-    if bootstrapconfig.symmetric:
-        pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
-        CI_low,CI_high = pseudo_std,pseudo_std
-    else:
-        CI_low, CI_high = EH.compute_lowhigh_std(central_value=original_sample_estimate, values=boot_values)
+    CI_low, CI_high = EH.build_confidence_interval(boot_values, original_sample_estimate, symmetric=bootstrapconfig.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
