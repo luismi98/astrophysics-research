@@ -3,7 +3,6 @@ import numpy as np
 import utils.ellipse_functions as EF
 import plotting.mixed_plots as MP
 
-
 # Note in all the code in this file vx & vy are placeholders for any desired velocity components.
 
 # TRIVIAL FUNCTIONS -------------------------------------------------------------------------

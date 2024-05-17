@@ -1,6 +1,9 @@
 import numpy as np
 import os
 import json
+import scipy.stats as stats
+
+import src.compute_variables as CV
 
 def prevent_byteorder_error(df):
     for column in df.columns:
@@ -343,3 +346,27 @@ def combine_multiple_cut_dicts_into_str(all_cuts, cut_separator="_", order_separ
     full_str = order_separator.join(segments)
     
     return full_str
+
+def get_error_vertex_deviation_roca_fabrega(n,vx,vy):
+    """
+    Expression from Roca-Fabrega et al. (2014), at https://doi.org/10.1093/mnras/stu437
+    """
+
+    mu_110 = CV.calculate_covariance(vx,vy)
+    mu_200 = np.var(vx)
+    mu_020 = np.var(vy)
+    mu_220 = np.mean( (vx-np.mean(vx))**2 * (vy-np.mean(vy))**2 )
+    mu_400 = stats.moment(vx,moment=4)
+    mu_040 = stats.moment(vy,moment=4)
+
+    a1 = 2/(n-1)-3/n
+    a2 = 1/(n-1)-2/n
+    a3 = 1/(n-1)-1/n
+    a4 = 1/(mu_110*(a1+4))
+    b1 = (mu_400+mu_040)/n
+    b2 = mu_200**2 + mu_020**2
+    b3 = (mu_200-mu_020)**2 / mu_110**2
+    
+    parenthesis = mu_220/n + mu_110**2 * a2 + mu_200*mu_020*a3
+
+    return np.abs(a4) * np.sqrt(b1 + a1*b2 + b3*parenthesis)

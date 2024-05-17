@@ -1,7 +1,7 @@
 import numpy as  np
 
-import compute_variables as CV
-import compute_errors as CE
+import src.compute_variables as CV
+import src.bootstrap_errors as CE
 
 def check_all_maps_are_filled(map_dict, full_map_string_list):
     not_filled = []
