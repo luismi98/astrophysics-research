@@ -165,8 +165,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         MC_values[i] = EH.apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
 
     if tilt and not absolute:
-        MC_values[(true_value - MC_values)>90] += 180
-        MC_values[(true_value - MC_values)<-90] -= 180
+        EH.correct_tilt_branch(MC_values, true_value)
 
     if montecarloconfig.symmetric:
         pseudo_std = np.sqrt(np.nanmean((MC_values-true_value)**2))

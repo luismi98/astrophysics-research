@@ -96,8 +96,7 @@ def get_std_bootstrap(function,bootstrapconfig,vx=None,vy=None,tilt=False,absolu
     assert None not in boot_values, "Some bootstrap values were not filled correctly."
     
     if tilt and not absolute:
-        boot_values[(original_sample_estimate - boot_values)>90] += 180
-        boot_values[(original_sample_estimate - boot_values)<-90] -= 180
+        EH.correct_tilt_branch(boot_values, original_sample_estimate)
 
     if bootstrapconfig.symmetric:
         pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
@@ -161,8 +160,7 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
     assert None not in boot_values and None not in nested_boot_errors, "Some bootstrap values / nested errors were not filled correctly."
 
     if tilt and not absolute:
-        boot_values[(original_sample_estimate - boot_values)>90] += 180
-        boot_values[(original_sample_estimate - boot_values)<-90] -= 180
+        EH.correct_tilt_branch(boot_values, original_sample_estimate)
 
     if bootstrapconfig.symmetric:
         pseudo_std = np.sqrt(np.nanmean((boot_values-original_sample_estimate)**2))
