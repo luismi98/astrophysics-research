@@ -23,12 +23,12 @@ def correct_tilt_branch(values, true_value, inplace=True):
 
     return values if not inplace else None
 
-def build_confidence_interval(values, true_value, symmetric=False):
+def build_confidence_interval(values, central_value, symmetric=False):
     if symmetric:
-        pseudo_std = np.sqrt(np.nanmean((values-true_value)**2))
-        CI_low,CI_high = pseudo_std,pseudo_std
+        std = np.sqrt(np.nanmean((values-central_value)**2))
+        CI_low,CI_high = std,std
     else:
-        CI_low, CI_high = compute_lowhigh_std(central_value=true_value, values=values)
+        CI_low, CI_high = compute_lowhigh_std(central_value=central_value, values=values)
 
     return CI_low, CI_high
 

@@ -1,28 +1,36 @@
 
 class BootstrapConfig():
-    def __init__(self, symmetric=True, repeats=500, replacement=True, bootstrap_size=None):
+    def __init__(self, sample_size=None, repeats=5000, replace=True, symmetric=True, from_mean=False, batch_size=None):
         """
         Parameters
         ----------
-        bootstrap_size: int, optional
-            Size of bootstrap samples. According to https://stats.stackexchange.com/questions/263710, it should be the same as the original sample. 
-            Default is None, which sets it to the original sample size in the compute_variables.get_std_bootstrap function.
+        sample_size: int, optional
+            Size of each bootstrap sample. For proper bootstrapping it should be the same as the original sample size (see e.g. https://stats.stackexchange.com/questions/263710).
+            The default behaviour, i.e. when `sample_size` is set to None, is to use the original sample size.
         
         replacement: boolean, optional
             Whether to take the samples with replacement or not. Defaults to True.
         
-        repeats: int, optional
+        repeats: int, optional. Default is 5000
             Number of bootstrap samples to take. 
-            Default is 500.
             
-        symmetric: boolean, optional
-            Whether to have symmetric low and high errors.
-            Default is True.
+        symmetric: boolean, optional. Default is True.
+            Whether to the confidence interval should be computed symmetrically with respect to the original sample estimate, or values below/above it should be 
+            used separately. See src.bootstrap_errors.get_std_bootstrap docstring
+
+        from_mean: boolean, optional. Default is False.
+            Whether the confidence interval should be computed around the mean. If False, it is computed from the original sample estimate.
+
+        batch_size: int, optional. Default is None.
+            If using vectorised code in src.bootstrap_errors for the different bootstrap samples (i.e. the different repeats) and experiencing memory issues,
+            set a batch_size. The default behaviour, i.e. when `batch_size` is set to None, is to use a single batch containing all repeats.
         """
         self.repeats = repeats
-        self.replacement = replacement
-        self.bootstrap_size = bootstrap_size
+        self.replace = replace
+        self.sample_size = sample_size
         self.symmetric = symmetric
+        self.from_mean = from_mean
+        self.batch_size = batch_size if batch_size is not None else repeats
 
 class MonteCarloConfig():
     def __init__(self, perturbed_vars, affected_cuts_dict, repeats=500, affected_cuts_lims_dict=None, error_frac=None,symmetric=False,\
