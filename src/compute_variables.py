@@ -5,12 +5,6 @@ import plotting.mixed_plots as MP
 
 # Note in all the code in this file vx & vy are placeholders for any desired velocity components.
 
-def calculate_mean(vx, keepdims = False):
-    return np.mean(vx, axis=-1, keepdims=keepdims)
-
-def calculate_var(vx, keepdims = False):
-    return np.var(vx, axis=-1, keepdims=keepdims)
-
 def calculate_covariance(vx,vy):
     """
     Calculate pair-wise covariance over the last axis of the vx and vy arrays.
@@ -38,11 +32,17 @@ def calculate_covariance(vx,vy):
     cov_xy = np.mean((vx - mean_x) * (vy - mean_y), axis=-1)
     return cov_xy
 
+def calculate_mean(vx, keepdims = False):
+    return np.mean(vx, axis=-1, keepdims=keepdims)
+
+def calculate_var(vx, keepdims = False):
+    return np.var(vx, axis=-1, keepdims=keepdims)
+
 def calculate_correlation(vx,vy):
     return calculate_covariance(vx,vy) / np.sqrt( calculate_var(vx) * calculate_var(vy) )
 
 def calculate_anisotropy(vx,vy):
-    return 1 - calculate_var(vx) * calculate_var(vy)
+    return 1 - calculate_var(vy) / calculate_var(vx)
 
 # TILTS ------------------------------------------------------------------------------------
 
