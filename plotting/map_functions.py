@@ -188,9 +188,7 @@ def get_kinematic_titles_dict(vel_x_variable="l",vel_y_variable="b"):
         'Mm':"Bar frame tilt",
         'rl': "Vertex deviation"
     }
-    tilt_abs_title_dict = {}
-    for key in list(tilt_title_dict.keys()):
-        tilt_abs_title_dict[key] = tilt_title_dict[key]+" abs"
+
     title_dict = {
         "mean_vx" : f"Mean {adjective_dict[vel_x_variable]} velocity",
         "mean_vy" : f"Mean {adjective_dict[vel_y_variable]} velocity",
@@ -199,6 +197,7 @@ def get_kinematic_titles_dict(vel_x_variable="l",vel_y_variable="b"):
         "std_x" : f"{adjective_dict[vel_x_variable]} standard deviation",
         "std_y" : f"{adjective_dict[vel_y_variable]} standard deviation",
         "tilt": tilt_title_dict[vel_x_variable+vel_y_variable],
+        "tilt_abs": tilt_title_dict[vel_x_variable+vel_y_variable],
         "spherical_tilt": "Spherical tilt",
         "abs_spherical_tilt": "Spherical tilt absolute",
         "vertex" : "Vertex deviation",
@@ -210,9 +209,7 @@ def get_kinematic_titles_dict(vel_x_variable="l",vel_y_variable="b"):
         "correlation_error" : "Correlation error"
     }
     title_dict["tilt_error"] = title_dict["tilt"]+" error"
-    title_dict["tilt_abs"] = title_dict["tilt"]+" abs"
-    title_dict["tilt_abs_error"] = "Error in "+title_dict["tilt_abs"][0].lower()+title_dict["tilt_abs"][1:]
-    title_dict["abs_spherical_tilt_error"] = "Error in "+title_dict["abs_spherical_tilt"][0].lower()+title_dict["abs_spherical_tilt"][1:]
+    title_dict["tilt_abs_error"] = title_dict["tilt_abs"]+" error"
 
     return title_dict
 
