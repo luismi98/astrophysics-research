@@ -287,3 +287,15 @@ def cbar_extend_list_union(extend_list):
         return "max"
     else:
         return "neither"
+    
+def get_asymmetric_error_text(value, lower_error, upper_error, dec=2):
+    """
+    Get a LaTeX string that renders to a value with upper and lower error bounds.
+    
+    Current method:     r"$1.23^{\,+0.4}_{\,-0.5}$"
+    Alternative method: r"$1.23\genfrac{}{}{0}{}{+0.4}{-0.5}$"
+    """
+
+    return r"$%s^{\,+%s}_{\,-%s}$"%(MF.return_int_or_dec(value,dec=dec),
+                                    MF.return_int_or_dec(upper_error,dec=dec),
+                                    MF.return_int_or_dec(lower_error,dec=dec))
