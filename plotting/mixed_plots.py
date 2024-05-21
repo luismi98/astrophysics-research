@@ -561,3 +561,17 @@ def visualise_spherical_tilt_calculation(beta_array, phi_vector):
 
     ax.set_aspect("equal")
     plt.show()
+
+def show_bootstrap_distribution_with_CI(true_value, bootstrap_distribution, confidence_interval, ax=None, histbins=50, ci_alpha=0.2):
+    given_ax = ax
+    if ax is None:
+        fig,ax = plt.subplots()
+
+    ax.axvline(true_value, color="red")
+    h=ax.hist(bootstrap_distribution,bins=histbins)
+
+    ci_low, ci_high = confidence_interval
+    ax.fill_between(x=[true_value - ci_low, true_value + ci_high],y1=[0,0],y2=[max(h[0]),max(h[0])],color="orange",alpha=ci_alpha)
+    
+    if given_ax is None:
+        plt.show()
