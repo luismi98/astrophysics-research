@@ -5,7 +5,7 @@ from collections import namedtuple
 from plotting.velocity_plot import velocity_plot
 import utils.coordinates as coordinates
 import utils.miscellaneous_functions as MF
-import utils.error_helpers as EH
+import utils.error_helpers as error_helpers
 
 def apply_MC(df, var, error_frac):
     if error_frac is None and var+"_error" not in df:
@@ -189,12 +189,12 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
         if vel_x_var is not None and vel_y_var is not None and show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
 
-        MC_values[i] = EH.apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
+        MC_values[i] = error_helpers.apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
 
     if tilt and not absolute:
-        EH.correct_tilt_branch(MC_values, true_value)
+        error_helpers.correct_tilt_branch(MC_values, true_value)
 
-    CI_low, CI_high = EH.build_confidence_interval(MC_values, true_value, symmetric=montecarloconfig.symmetric)
+    CI_low, CI_high = error_helpers.build_confidence_interval(MC_values, true_value, symmetric=montecarloconfig.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
     

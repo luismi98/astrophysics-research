@@ -14,12 +14,12 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
     else:
         return function(vx,vy,R_hat,absolute=absolute)
     
-def correct_tilt_branch(values, true_value, inplace=True):
+def correct_tilt_branch(values, central_value, inplace=True):
     if not inplace:
         values = copy.deepcopy(values)
 
-    values[(true_value - values)>90] += 180
-    values[(true_value - values)<-90] -= 180
+    values[(central_value - values)>90] += 180
+    values[(central_value - values)<-90] -= 180
 
     return values if not inplace else None
 

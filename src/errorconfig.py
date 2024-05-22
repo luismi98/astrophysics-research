@@ -20,17 +20,12 @@ class BootstrapConfig():
 
         from_mean: boolean, optional. Default is False.
             Whether the confidence interval should be computed around the mean. If False, it is computed from the original sample estimate.
-
-        batch_size: int, optional. Default is None.
-            If using vectorised code in src.bootstrap_errors for the different bootstrap samples (i.e. the different repeats) and experiencing memory issues,
-            set a batch_size. The default behaviour, i.e. when `batch_size` is set to None, is to use a single batch containing all repeats.
         """
         self.repeats = repeats
         self.replace = replace
         self.sample_size = sample_size
         self.symmetric = symmetric
         self.from_mean = from_mean
-        self.batch_size = batch_size if batch_size is not None else repeats
 
 class MonteCarloConfig():
     def __init__(self, perturbed_vars, affected_cuts_dict, repeats=5000, error_frac=None,symmetric=False, affected_cuts_lims_dict=None,\
