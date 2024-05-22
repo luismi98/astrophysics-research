@@ -7,6 +7,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import src.compute_variables as CV
 import src.bootstrap_errors as CE
+from src.errorconfig import BootstrapConfig
+
 import utils.miscellaneous_functions as MF
 import plotting.plotting_helpers as PH
 
@@ -83,15 +85,17 @@ def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-4
 #---- VALUES ------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------
 
+    bootstrapconfig = BootstrapConfig(repeats=bootstrap_repeat,symmetric=True)
+
     variables_dict = {
         "vertex": CV.calculate_tilt(vx,vy,absolute=False),
-        "vertex_error": CE.get_std_bootstrap(CV.calculate_tilt,vx,vy,tilt=True,absolute=False,repeat=bootstrap_repeat),
+        "vertex_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=False,bootstrapconfig=bootstrapconfig).confidence_interval[0],
         "vertex_abs": CV.calculate_tilt(vx,vy,absolute=True),
-        "vertex_abs_error": CE.get_std_bootstrap(CV.calculate_tilt,vx,vy,tilt=True,absolute=True,repeat=bootstrap_repeat),
+        "vertex_abs_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=True,bootstrapconfig=bootstrapconfig).confidence_interval[0],
         "anisotropy": CV.calculate_anisotropy(vx,vy),
-        "anisotropy_error": CE.get_std_bootstrap(CV.calculate_anisotropy,vx,vy,repeat=bootstrap_repeat),
+        "anisotropy_error": CE.get_std_bootstrap(function=CV.calculate_anisotropy,vx=vx,vy=vy,bootstrapconfig=bootstrapconfig).confidence_interval[0],
         "correlation": CV.calculate_correlation(vx,vy),
-        "correlation_error": CE.get_std_bootstrap(CV.calculate_correlation,vx,vy,repeat=bootstrap_repeat)
+        "correlation_error": CE.get_std_bootstrap(function=CV.calculate_correlation,vx=vx,vy=vy,bootstrapconfig=bootstrapconfig).confidence_interval[0]
     }
     #for key in variables_dict:
     #    print(variables_dict[key])
@@ -162,8 +166,8 @@ def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-4
 
     ax.set_xticks(np.arange(vel_lims[0][0], vel_lims[0][1], tickstep)) #(-300,400,100)
     ax.set_yticks(np.arange(vel_lims[1][0], vel_lims[1][1], tickstep))
-    #ax.tick_params(axis="x", labelsize=size_ticks)
-    #ax.tick_params(axis="y", labelsize=size_ticks)
+    ax.tick_params(axis="x", labelsize=size_ticks)
+    ax.tick_params(axis="y", labelsize=size_ticks)
 
     ax.axvline(0, color='grey', linestyle='--')
     ax.axhline(0, color='grey', linestyle='--')
