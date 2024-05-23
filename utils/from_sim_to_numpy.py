@@ -187,7 +187,7 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
     save_path : str
         Directory path where the processed numpy arrays will be saved.
     angle_list : list of float, optional
-        List of angles in degrees to rotate the simulation data. Default is [BAR_ANGLE].
+        List of angles in degrees by which to rotate the bar relative to the l=0˚ line, clockwise. Default is given in coordinates.get_bar_angle()
     axisymmetric : bool, optional
         If True, the simulation will be processed to be axisymmetric. Default is False.
     pos_factor : float, optional
@@ -195,9 +195,9 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
     vel_factor : float, optional
         Factor by which to scale the velocities. Default is 0.48.
     R0 : float, optional
-        Solar radius in kpc. Default is R0_CONST.
+        Solar radius in kpc. Default is given in coordinates.get_solar_radius()
     Z0 : float, optional
-        Solar height in kpc. Default is Z0_CONST.
+        Solar height in kpc. Default is given in coordinates.get_solar_height()
     zabs : bool, optional
         If True, mirror data below the plane to above the plane to increase statistics. Default is False.
     GSR : bool, optional
