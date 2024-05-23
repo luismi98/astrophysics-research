@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 import pynbody #https://pynbody.github.io/pynbody/reference/essentials.html
-from galpy.util import coords as bovy_coords #https://docs.galpy.org/en/v1.6.0/reference/bovycoords.html
+
 import utils.coordinates as coordinates
-from load_sim import build_filename
+from utils.load_sim import build_filename
 
 BAR_ANGLE = coordinates.get_bar_angle()
 Z0_CONST = coordinates.get_solar_height()
@@ -157,7 +157,7 @@ def save_as_np(df, save_path, filename):
     print("Saved:", save_path+filename)
 
     np.save(save_path + filename + "_columns", column_array)
-    print("Saved:", save_path+"columns")
+    print("Saved:", save_path+filename+"_columns")
 
     with open(save_path + filename + "_columns.txt", 'w') as f:
         f.write(f"Saved simulation with datatype np.float32.\nThe columns are: {list(column_array)}")
