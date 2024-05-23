@@ -177,6 +177,54 @@ def load_pynbody_sim(filepath):
 
 def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48,\
                            R0=R0_CONST, Z0=Z0_CONST, zabs = False, GSR = True, I_radius=4, choice="708main"):
+    """
+    Load, process, and save a simulation file (.gz) into a numpy array (.npy).
+
+    Parameters
+    ----------
+    simulation_filepath : str
+        Path to the simulation file to be loaded.
+    save_path : str
+        Directory path where the processed numpy arrays will be saved.
+    angle_list : list of float, optional
+        List of angles in degrees to rotate the simulation data. Default is [BAR_ANGLE].
+    axisymmetric : bool, optional
+        If True, the simulation will be processed to be axisymmetric. Default is False.
+    pos_factor : float, optional
+        Factor by which to scale the positions. Default is 1.7.
+    vel_factor : float, optional
+        Factor by which to scale the velocities. Default is 0.48.
+    R0 : float, optional
+        Solar radius in kpc. Default is R0_CONST.
+    Z0 : float, optional
+        Solar height in kpc. Default is Z0_CONST.
+    zabs : bool, optional
+        If True, mirror data below the plane to above the plane to increase statistics. Default is False.
+    GSR : bool, optional
+        If True, transforms will be done assuming Galactic Standard of Rest. Default is True.
+    I_radius : float, optional
+        Radius within which to consider stars for computing the bar angle. Default is 4 kpc.
+    choice : str, optional
+        String identifier for the filename. Default is "708main".
+
+    Returns
+    -------
+    None
+
+    Saves (onto `save_path`)
+    ------------------------
+    sim: 2D numpy array
+        Contains a row per star, and a column per variable of interest (e.g. stellar age).
+    
+    columns: 1D numpy array
+        Contains the name of each column in the sim.
+        Current columns are: 
+        ['x', 'y', 'z', 'vx', 'vy', 'vz', 'age', 'l', 'b', 'd', 'vr', 'vl', 'vb', 'ra', 'dec', 'pmra', 'pmdec', 'R', 'phi', 'vR', 'vphi', 'vM', 'vm']
+    
+    info: .txt file
+        Currently informs of the datatype and the columns.
+    """
+
     if not os.path.isfile(simulation_filepath):
         raise FileNotFoundError(f"File not found at: `{simulation_filepath}`.")
     if not os.path.isdir(save_path):
