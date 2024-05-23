@@ -11,11 +11,11 @@ Z0_CONST = coordinates.get_solar_height()
 R0_CONST = coordinates.get_solar_radius()
 
 def calculate_bar_angle_from_inertia_tensor(x,y,mass):
-    if (len(x) != len(y) or len(x) != len(mass)):
-        raise ValueError("The length of the star's position and mass arrays did not match.")
+    if not len(x) == len(y) == len(mass):
+        raise ValueError("The length of the star's positions and mass arrays did not match.")
     
     #Calculate the moment of inertia tensor
-    I_xx, I_yy, I_xy = np.sum(mass*y**2), np.sum(mass*x**2), np.sum(mass*-1*x*y)
+    I_xx, I_yy, I_xy = np.sum(mass*y**2), np.sum(mass*x**2), -np.sum(mass*x*y)
     I = np.array([[I_xx, I_xy], [I_xy, I_yy]])
     
     #Calculate the eigenvalues and eigenvectors
@@ -50,7 +50,6 @@ def get_bar_stars(sim, tform_min=3, tform_max=6, zmin=0.2, Rmax=4):
         ]
 
 def compute_bar_angle(sim,I_radius=4):
-
     bar_stars = get_bar_stars(sim=sim,Rmax=I_radius)
 
     x_bar, y_bar, mass_bar = extract_xymass_from_stars(bar_stars)
@@ -60,34 +59,33 @@ def compute_bar_angle(sim,I_radius=4):
     return maj_axis_angle
 
 def apply_factors(df, position_factor, velocity_factor):
-    #scale bar from 3kpc to 5kpc (size of Milky Way's bar)
-    #Spatial factor should be 5/3=1.7 - I modified it to 1.3 and then 1.5 to investigate Oscar's result (31st March 2021)
     df.x = df.x*position_factor
     df.y = df.y*position_factor
     df.z = df.z*position_factor
 
-    df.vx = df.vx*velocity_factor #Debattista et al 2017 - Ask Steven?
+    df.vx = df.vx*velocity_factor
     df.vy = df.vy*velocity_factor
     df.vz = df.vz*velocity_factor
 
 def flip_Lz(df):
     """
-    Flip Lz to match the rotation of the MW
+    Flip Lz to match the rotation of the MW.
 
-    Using pynbody.analysis.angmom.faceon(whole_sim, cen=(0,0,0)) aligns Lz so that the galaxy rotates 
-    ANTI-CLOCKWISE with z to the North. Having the x axis towards the Sun, y in the direction of rotation,
-    and z to the North is a right-hand system. 
-    We have aligned the bar with the x-axis and rotated ANTI-CLOCKWISE by say 27° degrees. But we know the
-    Milky Way rotates clockwise and that the bar angle is 27° CLOCKWISE with respect to the Sun-GC LOS
-    Therefore, flip the galaxy 180° about the x-axis (by multiplying the y and vy components by -1, see
-    drawing in logbook). That makes the galaxy rotate clockwise, with the y axis along the rotation. 
-    Then change the sign of z and vz to have a right-handed system.
-    """
+    Using pynbody.analysis.angmom.faceon(whole_sim, cen=(0,0,0)) as performed in `load_pynbody_sim()` aligns Lz so that the galaxy rotates
+    ANTI-CLOCKWISE with z to the North. Moreover, the function `load_process_and_save()` aligns the bar with the x-axis and rotates it 
+    ANTI-CLOCKWISE by the desired bar angle, say 27˚.
+
+    We know the Milky Way rotates CLOCKWISE and that the bar angle is 27° CLOCKWISE with respect to the Sun-GC LOS. Therefore, flip the
+    galaxy 180° about the x-axis (by multiplying the y and vy components by -1). This makes the model rotate CLOCKWISE, with the y axis along
+    the rotation. 
     
-    df.z = df.z*(-1)
+    Then change the sign of z and vz to have a right-handed system. Note x grows from the Sun towards the GC.
+    """
     df.y = df.y*(-1)
-    df.vz = df.vz*(-1)
     df.vy = df.vy*(-1)
+
+    df.z = df.z*(-1)
+    df.vz = df.vz*(-1)
 
 def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=BAR_ANGLE):
 
@@ -191,9 +189,9 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
     axisymmetric : bool, optional
         If True, the simulation will be processed to be axisymmetric. Default is False.
     pos_factor : float, optional
-        Factor by which to scale the positions. Default is 1.7.
+        Factor by which to scale the positions. Default is 1.7, which scales 708main's bar from 3kpc to 5kpc (size of Milky Way's bar).
     vel_factor : float, optional
-        Factor by which to scale the velocities. Default is 0.48.
+        Factor by which to scale the velocities. Default is 0.48. See Debattista et al., 2017.
     R0 : float, optional
         Solar radius in kpc. Default is given in coordinates.get_solar_radius()
     Z0 : float, optional
