@@ -79,7 +79,7 @@ def get_std_bootstrap(function, config, vx=None, vy=None, tilt=False, absolute=T
 
     original_sample_estimate = error_helpers.apply_function(function,vx,vy,R_hat,tilt,absolute)
     
-    boot_values = build_bootstrap_distribution(vx=vx,vy=vy,config=config,R_hat=R_hat,tilt=tilt,absolute=absolute,vectorised=vectorised,batch_size=batch_size)
+    boot_values = build_bootstrap_distribution(function=function,config=config,vx=vx,vy=vy,R_hat=R_hat,tilt=tilt,absolute=absolute,vectorised=vectorised,batch_size=batch_size)
 
     assert not np.any(np.isnan(boot_values)), "Some bootstrap values were not filled correctly."
     
@@ -94,7 +94,7 @@ def get_std_bootstrap(function, config, vx=None, vy=None, tilt=False, absolute=T
     
     return Result(confidence_interval=(CI_low,CI_high), bootstrap_distribution=boot_values, standard_error=np.std(boot_values), bias=np.mean(boot_values)-original_sample_estimate)
 
-def build_bootstrap_distribution(vx, vy, config, R_hat, tilt, absolute, vectorised, batch_size):
+def build_bootstrap_distribution(function, config, vx, vy, tilt, absolute, R_hat, vectorised, batch_size):
     """
     See get_std_bootstrap docstring.
     """
