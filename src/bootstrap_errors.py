@@ -227,6 +227,7 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
     assert not np.any(np.isnan(sampling_values)), "Some bootstrap values were not filled correctly."
     assert not np.any(np.isnan(bootstrap_standard_errors)), "Some nested errors were not filled correctly."
     assert not np.any(np.isnan(bootstrap_confidence_intervals)), "Some nested confidence intervals were not filled correctly"
+    assert not np.any(np.isnan(bootstrap_biases)), "Some nested biases were not filled correctly"
 
     central_value = np.mean(sampling_values) if config.from_mean else true_value
 
