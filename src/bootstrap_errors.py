@@ -214,9 +214,9 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
     sample_size = population_size if config.sample_size is None else config.sample_size
     
     sampling_values = np.full(shape=(config.repeats), fill_value=np.nan)
-    bootstrap_confidence_intervals = np.full(shape=(nested_config.repeats, 2), fill_value=np.nan)
-    bootstrap_standard_errors = np.full(shape=(nested_config.repeats), fill_value=np.nan)
-    bootstrap_biases = np.full(shape=(nested_config.repeats), fill_value=np.nan)
+    bootstrap_confidence_intervals = np.full(shape=(config.repeats, 2), fill_value=np.nan)
+    bootstrap_standard_errors = np.full(shape=(config.repeats), fill_value=np.nan)
+    bootstrap_biases = np.full(shape=(config.repeats), fill_value=np.nan)
 
     for i in range(config.repeats):
         bootstrap_indices = np.random.choice(population_size, size = sample_size, replace = config.replace)
