@@ -4,7 +4,7 @@ from collections import namedtuple
 
 import utils.error_helpers as error_helpers
 
-def get_std_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False, absolute=True, R_hat=None, vectorised=False, batch_size=None):
+def get_std_bootstrap(function, config, vx=None, vy=None, tilt=False, absolute=True, R_hat=None, vectorised=False, batch_size=None):
     """
     Estimate the confidence interval of your sample estimate, given as a distance relative to the sample estimate, using the Monte Carlo sampling
     implementation of non-parametric bootstrapping. See, e.g., https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4784504/ for more details.
@@ -21,10 +21,10 @@ def get_std_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False, a
         5. The low/high limits of the confidence interval are given as the square root of the mean squared below/above deviations from step 4.
 
     The above changes when:
-    - bootstrapconfig.symmetric is True: all the values are treated the same, without the below/above split, hence the low/high limits of the
+    - config.symmetric is True: all the values are treated the same, without the below/above split, hence the low/high limits of the
                                          confidence interval are the same distance away from the original sample estimate.
-    - bootstrapconfig.from_mean is True: the confidence interval is computed around the bootstrap mean instead of the original sample estimate.
-    - bootstrapconfig.replace is False: the bootstrap distribution is built without replacement. This can be used to build the sampling distribution
+    - config.from_mean is True: the confidence interval is computed around the bootstrap mean instead of the original sample estimate.
+    - config.replace is False: the bootstrap distribution is built without replacement. This can be used to build the sampling distribution
                                         of the statistic of interest, by sampling without replacement from the population (with 
                                         bootstrap.sample_size << population size). Note this is not bootstrapping anymore.
 
@@ -33,7 +33,7 @@ def get_std_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False, a
     function: callable
         Function used to compute the desired statistic whose error you want to estimate.
 
-    bootstrapconfig: BootstrapConfig object
+    config: BootstrapConfig object
         See docstring in src/errorconfig.py
 
     vx, vy: array-like, optional. Default is None.
@@ -61,10 +61,10 @@ def get_std_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False, a
     A Result object with the below attributes.
 
     confidence_interval: tuple
-        The low and high limits of the confidence interval. They are given as a distance from the original sample estimate (or mean if bootstrapconfig.from_mean is True).
-        If bootstrapconfig.from_mean is False, the confidence interval is 1 pseudo-std (see explanation above), resulting from adding the standard error and bias in quadrature.
+        The low and high limits of the confidence interval. They are given as a distance from the original sample estimate (or mean if config.from_mean is True).
+        If config.from_mean is False, the confidence interval is 1 pseudo-std (see explanation above), resulting from adding the standard error and bias in quadrature.
     
-    bootstrap_distribution: 1D array of length `bootstrapconfig.repeats`
+    bootstrap_distribution: 1D array of length `config.repeats`
         All the bootstrap estimates.
     
     standard_error: float
@@ -79,35 +79,35 @@ def get_std_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False, a
 
     original_sample_estimate = error_helpers.apply_function(function,vx,vy,R_hat,tilt,absolute)
     
-    boot_values = build_bootstrap_distribution(vx=vx,vy=vy,bootstrapconfig=bootstrapconfig,R_hat=R_hat,tilt=tilt,absolute=absolute,vectorised=vectorised,batch_size=batch_size)
+    boot_values = build_bootstrap_distribution(vx=vx,vy=vy,config=config,R_hat=R_hat,tilt=tilt,absolute=absolute,vectorised=vectorised,batch_size=batch_size)
 
     assert not np.any(np.isnan(boot_values)), "Some bootstrap values were not filled correctly."
     
-    central_value = np.mean(boot_values) if bootstrapconfig.from_mean else original_sample_estimate
+    central_value = np.mean(boot_values) if config.from_mean else original_sample_estimate
 
     if tilt and not absolute:
         error_helpers.correct_tilt_branch(boot_values, central_value)
 
-    CI_low, CI_high = error_helpers.build_confidence_interval(boot_values, central_value, symmetric=bootstrapconfig.symmetric)
+    CI_low, CI_high = error_helpers.build_confidence_interval(boot_values, central_value, symmetric=config.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
     return Result(confidence_interval=(CI_low,CI_high), bootstrap_distribution=boot_values, standard_error=np.std(boot_values), bias=np.mean(boot_values)-original_sample_estimate)
 
-def build_bootstrap_distribution(vx, vy, bootstrapconfig, R_hat, tilt, absolute, vectorised, batch_size):
+def build_bootstrap_distribution(vx, vy, config, R_hat, tilt, absolute, vectorised, batch_size):
     """
     See get_std_bootstrap docstring.
     """
 
     original_sample_size = len(vx) if vx is not None else len(vy)
-    bootstrap_sample_size = original_sample_size if bootstrapconfig.sample_size is None else bootstrapconfig.sample_size
-    total_repeats = bootstrapconfig.repeats
+    bootstrap_sample_size = original_sample_size if config.sample_size is None else config.sample_size
+    total_repeats = config.repeats
 
     bootstrap_distribution = np.full(shape=(total_repeats), fill_value=None, dtype=float)
 
     if not vectorised:
         for i in range(total_repeats):
-            indices = np.random.choice(original_sample_size, size = bootstrap_sample_size, replace = bootstrapconfig.replace)
+            indices = np.random.choice(original_sample_size, size = bootstrap_sample_size, replace = config.replace)
             
             boot_vx = vx[indices] if vx is not None else None
             boot_vy = vy[indices] if vy is not None else None
@@ -116,7 +116,7 @@ def build_bootstrap_distribution(vx, vy, bootstrapconfig, R_hat, tilt, absolute,
 
     else:
         for i in range(0, total_repeats, batch_size):
-            indices = get_2D_indices_to_resample(data_length=original_sample_size, sample_size=bootstrap_sample_size, repeats=min(batch_size, total_repeats-i), replace_bool=bootstrapconfig.replace)
+            indices = get_2D_indices_to_resample(data_length=original_sample_size, sample_size=bootstrap_sample_size, repeats=min(batch_size, total_repeats-i), replace_bool=config.replace)
 
             boot_vx = vx[indices] if vx is not None else None
             boot_vy = vy[indices] if vy is not None else None
@@ -145,7 +145,7 @@ def get_2D_indices_to_resample(data_length, sample_size, repeats, replace_bool):
         
     return indices
 
-def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=None,vx=None,vy=None,tilt=False,absolute=False,R_hat=None):
+def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=None,tilt=False,absolute=False,R_hat=None):
     """
     This function does the same as get_std_bootstrap above but on two depth levels: for a population and for each sample in its sampling distribution.
 
@@ -169,9 +169,9 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
     ----------
     See get_std_bootstrap docstring for an explanation of all parameters except:
 
-    nested_bootstrapconfig: BootstrapConfig object, optional. Default is None.
+    nested_config: BootstrapConfig object, optional. Default is None, in which case it will be set to `config`.
         Bootstrap configuration for the nested bootstrapping, i.e. for the construction of the bootstrap distributions for each sample in the
-        sampling distribution. The sampling distribution itself is built using the configuration in `bootstrapconfig`.
+        sampling distribution. The sampling distribution itself is built using the configuration in `config`.
 
     Returns
     -------
@@ -198,28 +198,28 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
 
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
-    if nested_bootstrapconfig is None:
-        nested_bootstrapconfig = bootstrapconfig
+    if nested_config is None:
+        nested_config = config
 
     true_value = error_helpers.apply_function(function,vx,vy,R_hat,tilt,absolute)
 
     population_size = len(vx) if vx is not None else len(vy)
-    sample_size = population_size if bootstrapconfig.sample_size is None else bootstrapconfig.sample_size
+    sample_size = population_size if config.sample_size is None else config.sample_size
     
-    sampling_values = np.full(shape=(bootstrapconfig.repeats), fill_value=np.nan)
-    bootstrap_confidence_intervals = np.full(shape=(nested_bootstrapconfig.repeats, 2), fill_value=np.nan)
-    bootstrap_standard_errors = np.full(shape=(nested_bootstrapconfig.repeats), fill_value=np.nan)
-    bootstrap_biases = np.full(shape=(nested_bootstrapconfig.repeats), fill_value=np.nan)
+    sampling_values = np.full(shape=(config.repeats), fill_value=np.nan)
+    bootstrap_confidence_intervals = np.full(shape=(nested_config.repeats, 2), fill_value=np.nan)
+    bootstrap_standard_errors = np.full(shape=(nested_config.repeats), fill_value=np.nan)
+    bootstrap_biases = np.full(shape=(nested_config.repeats), fill_value=np.nan)
 
-    for i in range(bootstrapconfig.repeats):
-        bootstrap_indices = np.random.choice(population_size, size = sample_size, replace = bootstrapconfig.replace)
+    for i in range(config.repeats):
+        bootstrap_indices = np.random.choice(population_size, size = sample_size, replace = config.replace)
         
         sampled_vx = vx[bootstrap_indices] if vx is not None else None
         sampled_vy = vy[bootstrap_indices] if vy is not None else None
             
         sampling_values[i] = error_helpers.apply_function(function,sampled_vx,sampled_vy,R_hat,tilt,absolute)
 
-        res = get_std_bootstrap(function=function,bootstrapconfig=nested_bootstrapconfig,vx=sampled_vx,vy=sampled_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
+        res = get_std_bootstrap(function=function,config=nested_config,vx=sampled_vx,vy=sampled_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
         bootstrap_confidence_intervals[i] = res.confidence_interval
         bootstrap_standard_errors[i] = res.standard_error
         bootstrap_biases[i] = res.bias
@@ -228,12 +228,12 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
     assert not np.any(np.isnan(bootstrap_standard_errors)), "Some nested errors were not filled correctly."
     assert not np.any(np.isnan(bootstrap_confidence_intervals)), "Some nested confidence intervals were not filled correctly"
 
-    central_value = np.mean(sampling_values) if bootstrapconfig.from_mean else true_value
+    central_value = np.mean(sampling_values) if config.from_mean else true_value
 
     if tilt and not absolute:
         error_helpers.correct_tilt_branch(sampling_values, central_value)
 
-    CI_low, CI_high = error_helpers.build_confidence_interval(sampling_values, central_value, symmetric=bootstrapconfig.symmetric)
+    CI_low, CI_high = error_helpers.build_confidence_interval(sampling_values, central_value, symmetric=config.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "nested_confidence_intervals", 
                                    "standard_error", "nested_standard_errors",
@@ -246,7 +246,7 @@ def get_std_bootstrap_recursive(function,bootstrapconfig,nested_bootstrapconfig=
                   bias = np.mean(sampling_values) - true_value,
                   bootstrap_biases = bootstrap_biases)
 
-def scipy_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False,absolute=False,R_hat=None):
+def scipy_bootstrap(function, config, vx=None, vy=None, tilt=False,absolute=False,R_hat=None):
     """
     Apply the BCa (bias-corrected and accelerated) bootstrap method, using `stats.scipy.bootstrap`.
     This method takes into account both bias and skew when computing the confidence interval.
@@ -263,7 +263,7 @@ def scipy_bootstrap(function, bootstrapconfig, vx=None, vy=None, tilt=False,abso
     res = stats.bootstrap(
             data=(vx,vy),
             statistic=lambda vx,vy: error_helpers.apply_function(function=function,vx=vx,vy=vy, R_hat=R_hat, tilt=tilt, absolute=absolute),
-            n_resamples=bootstrapconfig.repeats,
+            n_resamples=config.repeats,
             vectorized=False,
             paired=True,
             confidence_level=0.68,

@@ -89,13 +89,13 @@ def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-4
 
     variables_dict = {
         "vertex": CV.calculate_tilt(vx,vy,absolute=False),
-        "vertex_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=False,bootstrapconfig=bootstrapconfig).confidence_interval[0],
+        "vertex_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=False,config=bootstrapconfig).confidence_interval[0],
         "vertex_abs": CV.calculate_tilt(vx,vy,absolute=True),
-        "vertex_abs_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=True,bootstrapconfig=bootstrapconfig).confidence_interval[0],
+        "vertex_abs_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=True,config=bootstrapconfig).confidence_interval[0],
         "anisotropy": CV.calculate_anisotropy(vx,vy),
-        "anisotropy_error": CE.get_std_bootstrap(function=CV.calculate_anisotropy,vx=vx,vy=vy,bootstrapconfig=bootstrapconfig).confidence_interval[0],
+        "anisotropy_error": CE.get_std_bootstrap(function=CV.calculate_anisotropy,vx=vx,vy=vy,config=bootstrapconfig).confidence_interval[0],
         "correlation": CV.calculate_correlation(vx,vy),
-        "correlation_error": CE.get_std_bootstrap(function=CV.calculate_correlation,vx=vx,vy=vy,bootstrapconfig=bootstrapconfig).confidence_interval[0]
+        "correlation_error": CE.get_std_bootstrap(function=CV.calculate_correlation,vx=vx,vy=vy,config=bootstrapconfig).confidence_interval[0]
     }
     #for key in variables_dict:
     #    print(variables_dict[key])

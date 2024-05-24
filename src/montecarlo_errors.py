@@ -82,7 +82,7 @@ def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=No
 
     return MC_vx,MC_vy
 
-def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
+def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
     """
     Compute a Monte Carlo error in the statistical variable of interest given individual uncertainties (one for each star), like so:
         1. Given each star, take the value of the variable to be perturbed and adds to it a number extracted from a Gaussian of mean 0 and standard
@@ -98,10 +98,10 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     Parameters
     ----------
     df: pandas dataframe.
-        Dataframe previous to applying any cuts affected by the perturbation (see montecarloconfig docstring).
+        Dataframe previous to applying any cuts affected by the perturbation (see src.MonteCarloConfig docstring).
     true_value: float
         Value of the statistic of interest as computed using the unperturbed population (with all cuts applied).
-    montecarloconfig: MonteCarloConfig object
+    config: MonteCarloConfig object
         See docstring in errorconfig.py
     vel_x_var, vel_y_var: string or None
         If string, indicate the horizontal/vertical velocity components. For example, "r" or "l".
@@ -128,48 +128,48 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     bias: float
         The difference between the mean of the MC distribution and the true value.
     within_cut: array
-        NumPy boolean array flagging the stars which, after the last perturbation, fell within the montecarloconfig.affected_cuts_dict
+        NumPy boolean array flagging the stars which, after the last perturbation, fell within the `config.affected_cuts_dict`
     """
 
     if vel_x_var is None and vel_y_var is None:
         raise ValueError("Both velocity components were set to None!")
-    if montecarloconfig is None:
-        raise ValueError("montecarloconfig cannot be None when estimating MC uncertainties.")
-    if len(montecarloconfig.perturbed_vars) == 0:
-        raise ValueError("The list of montecarloconfig.perturbed_vars was empty!")
+    if config is None:
+        raise ValueError("config cannot be None when estimating MC uncertainties.")
+    if len(config.perturbed_vars) == 0:
+        raise ValueError("The list of config.perturbed_vars was empty!")
     
-    if "pmra" in montecarloconfig.perturbed_vars or "pmdec" in montecarloconfig.perturbed_vars or "d" in montecarloconfig.perturbed_vars:
+    if "pmra" in config.perturbed_vars or "pmdec" in config.perturbed_vars or "d" in config.perturbed_vars:
         add_equatorial_coord_and_pm_to_df_if_needed(df)
 
     within_cut = None
-    MC_values = np.empty(shape=(montecarloconfig.repeats))
+    MC_values = np.empty(shape=(config.repeats))
 
-    for i in range(montecarloconfig.repeats):
+    for i in range(config.repeats):
 
         df_helper = copy.deepcopy(df)
 
-        if "vr" in montecarloconfig.perturbed_vars:
-            apply_MC(df_helper, "vr", montecarloconfig.error_frac)
+        if "vr" in config.perturbed_vars:
+            apply_MC(df_helper, "vr", config.error_frac)
 
-        if "pmra" in montecarloconfig.perturbed_vars:
-            apply_MC(df_helper, "pmra", montecarloconfig.error_frac)
+        if "pmra" in config.perturbed_vars:
+            apply_MC(df_helper, "pmra", config.error_frac)
 
-        if "pmdec" in montecarloconfig.perturbed_vars:
-            apply_MC(df_helper, "pmdec", montecarloconfig.error_frac)
+        if "pmdec" in config.perturbed_vars:
+            apply_MC(df_helper, "pmdec", config.error_frac)
 
-        if "d" in montecarloconfig.perturbed_vars:
-            apply_MC(df_helper, "d", montecarloconfig.error_frac)
+        if "d" in config.perturbed_vars:
+            apply_MC(df_helper, "d", config.error_frac)
 
-            within_cut = build_within_cut_boolean_array(df_helper, montecarloconfig.affected_cuts_dict, montecarloconfig.affected_cuts_lims_dict)
+            within_cut = build_within_cut_boolean_array(df_helper, config.affected_cuts_dict, config.affected_cuts_lims_dict)
             
             if within_cut is not None:        
                 df_helper = df_helper[within_cut]
 
-            if montecarloconfig.random_resampling_indices is not None:
+            if config.random_resampling_indices is not None:
 
-                resampled_indices = df_helper.index.intersection(montecarloconfig.random_resampling_indices)
+                resampled_indices = df_helper.index.intersection(config.random_resampling_indices)
 
-                extra_N = len(montecarloconfig.random_resampling_indices) - len(resampled_indices)
+                extra_N = len(config.random_resampling_indices) - len(resampled_indices)
                 if extra_N > 0: # some of the resampled stars fell outside the spatial cut, let's take some extra ones
                     
                     extra_indices = np.random.choice(
@@ -181,10 +181,10 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
                     df_helper = df_helper.loc[resampled_indices]
 
         else:
-            if montecarloconfig.random_resampling_indices is not None:
-                df_helper = df_helper.loc[montecarloconfig.random_resampling_indices]
+            if config.random_resampling_indices is not None:
+                df_helper = df_helper.loc[config.random_resampling_indices]
 
-        MC_vx, MC_vy = extract_velocities_after_MC(df_helper, montecarloconfig.perturbed_vars, vel_x_var, vel_y_var)
+        MC_vx, MC_vy = extract_velocities_after_MC(df_helper, config.perturbed_vars, vel_x_var, vel_y_var)
 
         if vel_x_var is not None and vel_y_var is not None and show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
@@ -194,7 +194,7 @@ def get_std_MC(df,true_value,function,montecarloconfig,vel_x_var=None,vel_y_var=
     if tilt and not absolute:
         error_helpers.correct_tilt_branch(MC_values, true_value)
 
-    CI_low, CI_high = error_helpers.build_confidence_interval(MC_values, true_value, symmetric=montecarloconfig.symmetric)
+    CI_low, CI_high = error_helpers.build_confidence_interval(MC_values, true_value, symmetric=config.symmetric)
 
     Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
     

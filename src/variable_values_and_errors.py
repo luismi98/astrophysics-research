@@ -37,7 +37,7 @@ def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,mo
         if vel_y_var is not None:
             vy = df["v"+vel_y_var].values
 
-        std_low,std_high,_ = CE.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,bootstrapconfig=bootstrapconfig)
+        std_low,std_high,_ = CE.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,config=bootstrapconfig)
 
         return std_low,std_high
     
