@@ -254,6 +254,10 @@ def vxvyvz_to_vXvYvZ(df,v_sun,R0=get_solar_radius(),Z0=get_solar_height()):
     df['vX'],df['vY'],df['vZ'] = vXYZ[:,0], vXYZ[:,1], vXYZ[:,2]
 
 def vxvy_to_vMvm(df,rot_angle=get_bar_angle()):
+    """
+    Get velocities along the bar axes.
+    """
+
     c = np.cos(np.radians(rot_angle))
     s = np.sin(np.radians(rot_angle))
 

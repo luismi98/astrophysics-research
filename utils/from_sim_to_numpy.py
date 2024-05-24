@@ -87,7 +87,7 @@ def flip_Lz(df):
     df.z = df.z*(-1)
     df.vz = df.vz*(-1)
 
-def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=BAR_ANGLE):
+def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=None):
 
     v_sun = coordinates.get_solar_velocity(changing_reference_frame = not GSR)
     if GSR: assert v_sun == [0,0,0], "`v_sun` needs to be zero for the simulation as velocities are already in the GSR"
@@ -106,7 +106,8 @@ def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=BAR_
     coordinates.xyz_to_Rphiz(df)
     coordinates.vxvyvz_to_vRvphivz(df)
     
-    coordinates.vxvy_to_vMvm(df,rot_angle=rot_angle)
+    if rot_angle is not None: # None when axisymmetric
+        coordinates.vxvy_to_vMvm(df,rot_angle=rot_angle)
 
 def axisymmetrise(df):
     coordinates.xyz_to_Rphiz(df)
@@ -120,7 +121,7 @@ def axisymmetrise(df):
     coordinates.Rphiz_to_xyz(df)
     coordinates.vRvphivz_to_vxvyvz(df)
 
-def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0=Z0_CONST,angle=27, zabs=True, GSR=True, axisymmetric=False):
+def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0=Z0_CONST,angle=BAR_ANGLE, zabs=True, GSR=True, axisymmetric=False):
     positions = np.array(sim_stars['pos'].in_units('kpc'))
     velocities = np.array(sim_stars['vel'].in_units('km s**-1'))
     tform = np.array(sim_stars['tform']) #https://pynbody.github.io/pynbody/reference/derived.html
@@ -132,6 +133,7 @@ def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0
     
     if axisymmetric:
         axisymmetrise(df)
+        angle = None
 
     apply_factors(df, pos_factor, vel_factor)
     flip_Lz(df)
@@ -217,7 +219,8 @@ def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGL
     columns: 1D numpy array
         Contains the name of each column in the sim.
         Current columns are: 
-        ['x', 'y', 'z', 'vx', 'vy', 'vz', 'age', 'l', 'b', 'd', 'vr', 'vl', 'vb', 'ra', 'dec', 'pmra', 'pmdec', 'R', 'phi', 'vR', 'vphi', 'vM', 'vm']
+        ['x', 'y', 'z', 'vx', 'vy', 'vz', 'age', 'l', 'b', 'd', 'vr', 'vl', 'vb', 'ra', 'dec', 'pmra', 'pmdec', 'R', 'phi', 'vR', 'vphi']
+        And, if `axisymmetric` is False, also ['vM', 'vm']
     
     info: .txt file
         Currently informs of the datatype and the columns.
