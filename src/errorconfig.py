@@ -1,6 +1,6 @@
 
 class BootstrapConfig():
-    def __init__(self, sample_size=None, repeats=5000, replace=True, symmetric=True, from_mean=False, batch_size=None):
+    def __init__(self, sample_size=None, repeats=5000, replace=True, symmetric=True, from_mean=False):
         """
         Parameters
         ----------

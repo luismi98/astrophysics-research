@@ -115,6 +115,9 @@ def build_bootstrap_distribution(function, config, vx, vy, tilt, absolute, R_hat
             bootstrap_distribution[i] = error_helpers.apply_function(function,boot_vx,boot_vy,R_hat,tilt,absolute)
 
     else:
+        if batch_size is None:
+            batch_size = total_repeats
+
         for i in range(0, total_repeats, batch_size):
             indices = get_2D_indices_to_resample(data_length=original_sample_size, sample_size=bootstrap_sample_size, repeats=min(batch_size, total_repeats-i), replace_bool=config.replace)
 
@@ -145,7 +148,7 @@ def get_2D_indices_to_resample(data_length, sample_size, repeats, replace_bool):
         
     return indices
 
-def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=None,tilt=False,absolute=False,R_hat=None):
+def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=None,tilt=False,absolute=False,R_hat=None,boot_vectorised=False, boot_batch_size=None):
     """
     This function does the same as get_std_bootstrap above but on two depth levels: for a population and for each sample in its sampling distribution.
 
@@ -172,6 +175,10 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
     nested_config: BootstrapConfig object, optional. Default is None, in which case it will be set to `config`.
         Bootstrap configuration for the nested bootstrapping, i.e. for the construction of the bootstrap distributions for each sample in the
         sampling distribution. The sampling distribution itself is built using the configuration in `config`.
+    boot_vectorised: bool, optional. Default is False.
+        Whether to perform the nested bootstrapping in a vectorised way.
+    boot_batch_size: int, optional. Default is None (corresponding to a single batch)
+        Only has effect if `boot_vectorised` is True. Batch size for the vectorised bootstrap.
 
     Returns
     -------
@@ -219,15 +226,16 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
             
         sampling_values[i] = error_helpers.apply_function(function,sampled_vx,sampled_vy,R_hat,tilt,absolute)
 
-        res = get_std_bootstrap(function=function,config=nested_config,vx=sampled_vx,vy=sampled_vy,tilt=tilt,absolute=absolute,R_hat=R_hat)
+        res = get_std_bootstrap(function=function,config=nested_config,vx=sampled_vx,vy=sampled_vy,tilt=tilt,absolute=absolute,R_hat=R_hat,
+                                vectorised=boot_vectorised,batch_size=boot_batch_size)
         bootstrap_confidence_intervals[i] = res.confidence_interval
         bootstrap_standard_errors[i] = res.standard_error
         bootstrap_biases[i] = res.bias
     
-    assert not np.any(np.isnan(sampling_values)), "Some bootstrap values were not filled correctly."
-    assert not np.any(np.isnan(bootstrap_standard_errors)), "Some nested errors were not filled correctly."
-    assert not np.any(np.isnan(bootstrap_confidence_intervals)), "Some nested confidence intervals were not filled correctly"
-    assert not np.any(np.isnan(bootstrap_biases)), "Some nested biases were not filled correctly"
+    assert not np.any(np.isnan(sampling_values)), "Some sampling distribution values were not filled correctly."
+    assert not np.any(np.isnan(bootstrap_standard_errors)), "Some bootstrap errors were not filled correctly."
+    assert not np.any(np.isnan(bootstrap_confidence_intervals)), "Some bootstrap confidence intervals were not filled correctly"
+    assert not np.any(np.isnan(bootstrap_biases)), "Some bootstrap biases were not filled correctly"
 
     central_value = np.mean(sampling_values) if config.from_mean else true_value
 
@@ -236,14 +244,14 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
 
     CI_low, CI_high = error_helpers.build_confidence_interval(sampling_values, central_value, symmetric=config.symmetric)
 
-    Result = namedtuple("Result", ["confidence_interval", "nested_confidence_intervals", 
-                                   "standard_error", "nested_standard_errors",
+    Result = namedtuple("Result", ["confidence_interval", "bootstrap_confidence_intervals",
+                                   "standard_error", "bootstrap_standard_errors",
                                    "bias", "bootstrap_biases"])
     
     return Result(confidence_interval = (CI_low,CI_high),
-                  nested_confidence_intervals = bootstrap_confidence_intervals, 
+                  bootstrap_confidence_intervals = bootstrap_confidence_intervals,
                   standard_error = np.std(sampling_values), 
-                  nested_standard_errors = bootstrap_standard_errors,
+                  bootstrap_standard_errors = bootstrap_standard_errors,
                   bias = np.mean(sampling_values) - true_value,
                   bootstrap_biases = bootstrap_biases)
 
