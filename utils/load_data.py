@@ -33,17 +33,11 @@ def select_dr2_variables(allStar, error_bool=False):
     values of pmra and pmdec perturbed by the corresponding errors, and compute the standard deviation of the resulting pml and pmbcosb values.
     """
     
-    # DR2
     kinematic_list = ["VHELIO_AVG"]
     kinematic_errors = ["VERR"]
     position_list = ["GLON","GLAT","RA","DEC"]
     properties_list = ["FE_H"]
     properties_error = ["FE_H_ERR"]
-
-    #other_position_list = ["GAIA_R_LO","GAIA_R_HI"]
-    #other_kinematic_list = ["GAIA_PMRA", "GAIA_PMDEC", "OBSVHELIO_AVG","VSCATTER", "OBSVSCATTER", "SYNTHVSCATTER", "SYNTHVHELIO_AVG", "GAIA_RADIAL_VELOCITY"]
-    #other_properties_list = ['RV_FEH','FE_H_FLAG']
-    #all_errors_list = ["VERR","VERR_MED","OBSVERR","OBSVERR_MED","SYNTHVERR","SYNTHVERR_MED","GAIA_PMRA_ERROR", "GAIA_PMDEC_ERROR", "GAIA_RADIAL_VELOCITY_ERROR","FE_H_ERR"]
     
     columns_to_keep_dr2 = np.concatenate([kinematic_list,position_list, properties_list])
     if error_bool:
@@ -54,11 +48,10 @@ def select_dr2_variables(allStar, error_bool=False):
     del allStar[delete_columns_dr2]
 
 def select_dr3_variables(gaiaDR3, error_bool=False):
-    # DR3
+
     kinematic_list = ["GAIA_PMRA", "GAIA_PMDEC"]
     quality_list = ["GAIA_RUWE", "good_delta_Gmag"]
     kinematic_errors = ["GAIA_PMRA_ERROR", "GAIA_PMDEC_ERROR"]
-    #other_kinematic_list = ["GAIA_RADIAL_VELOCITY", "GAIA_RADIAL_VELOCITY_ERROR"]
     
     columns_to_keep_dr3 = np.concatenate([kinematic_list, quality_list])
     if error_bool:
@@ -81,8 +74,6 @@ def get_dataframe(allStar, spectrophoto, gaiaDR3, error_bool=False):
     dr3.rename(columns={"GAIA_PMRA":"pmra","GAIA_PMDEC":"pmdec"},inplace=True)
     if error_bool:
         dr3.rename(columns={"GAIA_PMRA_ERROR":"pmra_error","GAIA_PMDEC_ERROR":"pmdec_error"},inplace=True)
-    #for column in dr3.columns:
-    #    dr3.rename(columns={column:"dr3_"+column},inplace=True)
     del gaiaDR3
         
     # JOIN
@@ -140,9 +131,9 @@ def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0_CONST,Z0=Z0_C
 
     coordinates.pmrapmdec_to_pmlpmb(data)
 
-    # Reflect above plane. Note pmb needs to be first
+    # Reflect above plane
     if zabs:
-        data.loc[data.b < 0, 'pmb'] *= -1
+        data.loc[data.b < 0, 'pmb'] *= -1 # important to do pmb first
         data.loc[data.b < 0, 'b'] *= -1
 
     coordinates.lbd_to_xyz(data, GSR=GSR, R0=R0, Z0=Z0)
@@ -152,7 +143,7 @@ def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0_CONST,Z0=Z0_C
     data.loc[data.phi < 0, 'phi'] += 360
 
     v_sun = coordinates.get_solar_velocity(changing_reference_frame=GSR)
-    if GSR: assert v_sun != [0,0,0], "v_sun should not be zero, as observed velocities are given from the perspective of the Sun and need to be corrected."
+    if GSR: assert v_sun != [0,0,0], "`v_sun` should not be zero if `GSR` is True, as observed velocities are given from the perspective of the Sun and need to be corrected."
 
     coordinates.vrpmlpmb_to_vxvyvz(data,v_sun=v_sun,R0=R0,Z0=Z0)
     coordinates.vxvyvz_to_vRvphivz(data)
@@ -166,7 +157,8 @@ def convert_positions_and_velocities(data,zabs=True,GSR=True,R0=R0_CONST,Z0=Z0_C
 def load_and_process_data(data_path="/Users/Luismi/Desktop/MRes_UCLan/Observational_data/", error_bool = False, zabs=True, 
                           GSR=True, R0=R0_CONST, verbose = False, drop_unused=True):
     
-    print(f"Working with zabs == {zabs}; GSR == {GSR}.")
+    if verbose:
+        print(f"Working with zabs = {zabs}; GSR = {GSR}.")
 
     data = load_data(data_path=data_path, error_bool=error_bool)
     
