@@ -52,7 +52,7 @@ def get_bar_angle():
 
 def get_solar_height():
     """
-    We know it is not truly 0, see Hawthorn & Gerhard 2016. However, it is small so I am setting it to 0 mainly because I not looked enough into how a non-zero 
+    We know it is not truly 0, see Hawthorn & Gerhard 2016. However, it is small so I am setting it to 0 mainly because I have not looked enough into how a non-zero 
     value affects the Galactic coordinate system (i.e. if we want b=0 to coincide with the true Galactic plane, then it would cease to be centered in the Sun)
     """
     return 0

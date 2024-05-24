@@ -25,7 +25,7 @@ def load_simulation(path, filename):
     df = pd.DataFrame(np.load(path + filename + ".npy"))
     columns = np.load(path + filename + "_columns.npy")
 
-    if (len(columns) == df.shape[1]):
+    if len(columns) == df.shape[1]:
         df.columns = columns
     else:
         raise ValueError("The number of columns to set did not have the right size!")
