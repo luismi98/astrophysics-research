@@ -552,13 +552,17 @@ def visualise_spherical_tilt_calculation(beta_array, phi_vector):
 
     for i,ang in enumerate(beta_array):
         ang *= np.pi/180
-        ax.plot([0,np.cos(ang)],[0,np.sin(ang)],"k--")
-        ax.text(np.cos(ang),np.sin(ang),s=str(i),color="r")
+        ax.plot([0,np.cos(ang)],[0,np.sin(ang)],"k--" if i!=0 else "g",label=None if i!=0 else "R_hat")
+        ax.text(np.cos(ang),np.sin(ang),s=str(i),color="k")
     
     phi_vector *= np.pi/180
     
-    ax.plot([0,np.cos(phi_vector)],[0,np.sin(phi_vector)],color="g")
+    ax.plot([np.cos(phi_vector),0],[np.sin(phi_vector),0],color="r",label="Semi-major axis direction (in quadrant < ±90˚ away from R_hat)")
 
+    ax.set_xlabel(r"$v_{x}$ [km/s]")
+    ax.set_ylabel(r"$v_{y}$ [km/s]")
+
+    ax.legend()
     ax.set_aspect("equal")
     plt.show()
 
