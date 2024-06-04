@@ -259,7 +259,8 @@ def get_map_tick_range(vmin,vmax,step,include_lims=True,verbose=False):
     max_tick = vmax//step * step
     pos_ticks = np.arange(0, max_tick+step, step)
     
-    min_tick = -(np.abs(vmin)//step * step) # Need the absolute value otherwise the floor division gives weird stuff - eg -2//10 gives -1
+    min_tick = np.abs(vmin)//step * step # Need the absolute value otherwise the floor division gives weird stuff (eg -2//10 gives -1)
+    min_tick *= -1 if vmin < 0 else 1
     neg_ticks = np.arange(min_tick,0,step)
     
     ticks = np.concatenate([neg_ticks,pos_ticks])
