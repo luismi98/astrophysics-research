@@ -123,19 +123,17 @@ def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable=
 
 def get_kinematic_units_dict(degree_symbol = '^\circ'):
     """
-    Get dictionary for the kinematic variable's units.
+    Get dictionary for all the kinematic variable's units.
 
     Parameters
     ----------
-    vel_x_variable: string
-        Horizontal velocity component.
-    vel_y_variable: string
-        Vertical velocity component.
+    degree_symbol: string
+        Which symbol to use for degrees.
 
     Returns
     -------
-    tuple
-        Dictionaries of symbols, units, titles
+    dict
+        Dictionary of kinematic variable's units
     """
 
     kinematic_units_dict = {}
@@ -214,6 +212,22 @@ def get_kinematic_titles_dict(vel_x_variable="l",vel_y_variable="b"):
     return title_dict
 
 def get_position_symbols_and_units_dict(zabs = True, degree_symbol = "^\circ"):
+    """
+    Get dictionaries for the symbols and units of all the position variables.
+
+    Parameters
+    ----------
+    zabs: bool, default is True
+        Whether the galaxy was mirrored above the plane, meaning b and z are now |b| and |z|.
+    degree_symbol: string
+        Which symbol to use for degrees.
+
+    Returns
+    -------
+    tuple of dicts:
+        A dictionary of symbols and another of units
+    """
+
     symbol_dict = {
         "l" : r"$l$",
         "b" : r"$b$" if not zabs else r"$|b|$",
