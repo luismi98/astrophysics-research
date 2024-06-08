@@ -109,7 +109,9 @@ def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable=
     for map_string in kinematic_variables_for_error:
         variable_symbol = kinematic_symbol_dict[map_string].replace('$','')
         kinematic_symbol_dict[map_string+"_error"] = r"ϵ$(%s)$"%variable_symbol # using the symbol directly as it doesn't detect \upepsilon
-        kinematic_symbol_dict[map_string+"_fractionalerror"] = r"ϵ$(%s)/|%s|$"%(variable_symbol,variable_symbol) # using the symbol directly as it doesn't detect \upepsilon
+        kinematic_symbol_dict[map_string+"_error_low"] = kinematic_symbol_dict[map_string+"_error"]
+        kinematic_symbol_dict[map_string+"_error_high"] = kinematic_symbol_dict[map_string+"_error"]
+        kinematic_symbol_dict[map_string+"_fractionalerror"] = r"ϵ$(%s)/|%s|$"%(variable_symbol,variable_symbol)
     
     if diff:
         kinematic_symbol_diff_dict = {}
@@ -147,6 +149,8 @@ def get_kinematic_units_dict(degree_symbol = '^\circ'):
     variables_for_error = ["tilt","tilt_abs","spherical_tilt","anisotropy","correlation"]
     for map_string in variables_for_error:
         kinematic_units_dict[map_string+"_error"] = kinematic_units_dict[map_string]
+        kinematic_units_dict[map_string+"_error_low"] = kinematic_units_dict[map_string]
+        kinematic_units_dict[map_string+"_error_high"] = kinematic_units_dict[map_string]
         kinematic_units_dict[map_string+"_fractionalerror"] = ''
 
     return kinematic_units_dict
