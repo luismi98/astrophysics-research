@@ -1,7 +1,8 @@
 import numpy as  np
 
 import src.compute_variables as CV
-import src.bootstrap_errors as CE
+import src.bootstrap_errors as bootstrap
+import src.montecarlo_errors as montecarlo
 
 def check_all_maps_are_filled(map_dict, full_map_string_list):
     not_filled = []
@@ -37,12 +38,12 @@ def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,mo
         if vel_y_var is not None:
             vy = df["v"+vel_y_var].values
 
-        std_low,std_high,_ = CE.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,config=bootstrapconfig)
+        result = bootstrap.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,config=bootstrapconfig)
 
-        return std_low,std_high
+        return result.confidence_interval
     
     elif error_type == "MC":
-        std_low,std_high,*_ = CE.get_std_MC(df=df, true_value=true_value,function=function, montecarloconfig=montecarloconfig, vel_x_var=vel_x_var, vel_y_var=vel_y_var, \
+        std_low,std_high,*_ = montecarlo.get_std_MC(df=df, true_value=true_value,function=function, montecarloconfig=montecarloconfig, vel_x_var=vel_x_var, vel_y_var=vel_y_var, \
                                          tilt=tilt, absolute=absolute, R_hat=R_hat)
         
         return std_low,std_high
