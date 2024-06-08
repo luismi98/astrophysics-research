@@ -18,7 +18,7 @@ def compute_fractional_errors(map_dict,full_map_string_list):
             value_string = map_string.split("_fractionalerror")
             map_dict[map_string] = abs(map_dict[value_string[0]+"_error"+value_string[1]]/map_dict[value_string[0]])
 
-def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,montecarloconfig=None,bootstrapconfig=None,tilt=False, absolute=False, R_hat = None):
+def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,montecarloconfig=None,bootstrapconfig=None,tilt=False,absolute=False,R_hat=None):
 
     if error_type=="MC" and montecarloconfig is None:
         raise ValueError(f"Estimating MC errors but montecarloconfig was None.")
@@ -51,7 +51,48 @@ def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,mo
         raise ValueError(f"Error type `{error_type}` not recognised.")
 
 def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_string_list,df_errors=None,montecarloconfig=None,bootstrapconfig=None,\
-                                       min_number=50, bin_surface=None, R_hat=None, x_var=None,y_var=None,error_type="bootstrap",verbose=False):
+                                       min_number=50, bin_surface=None, R_hat=None, x_var=None,y_var=None,error_type="bootstrap"):
+    """
+    Create a dictionary with the values of all the variables in full_map_string_list.
+
+    Parameters
+    ----------
+    df_vals : pandas DataFrame
+        Data, observational or simulated, to compute the variables for.
+    vel_x_var : str
+        Suffix of x-component of velocity.
+    vel_y_var : str
+        Suffix of y-component of velocity.
+    full_map_string_list : list of str
+        List of statistics to compute (e.g., 'mean_vx', 'std_vx', 'n_density').
+    df_errors : pandas DataFrame, optional
+        Data previous to applying any cuts that affect the Monte Carlo error calculation.
+        Defaults to None, in which case df_vals is used.
+    montecarloconfig : MonteCarloConfig, optional
+        Configuration for Monte Carlo error estimation. See src/errorconfig.py
+        Required if error_type is 'MC'. Defaults to None.
+    bootstrapconfig : BootstrapConfig, optional
+        Configuration for bootstrap error estimation. See src/errorconfig.py
+        Required if error_type is 'bootstrap'. Defaults to None.
+    min_number : int, optional
+        Minimum number of stars required to compute statistics. Defaults to 50.
+    bin_surface : float, optional
+        Surface area of each bin, required to calculate the number density. 
+        Required if 'n_density' is in full_map_string_list. Defaults to None.
+    R_hat : tuple, optional
+        Radial distance, required for spherical tilt calculations. Defaults to None.
+    x_var : str, optional
+        Horizontal position variable, required for spherical tilt calculations. Defaults to None.
+    y_var : str, optional
+        Vertical position variable, required for spherical tilt calculations. Defaults to None.
+    error_type : str, optional
+        Type of error estimation to use ('bootstrap' or 'MC'). Defaults to 'bootstrap'.
+
+    Returns
+    -------
+    map_dict : dict
+        A dictionary with the values of all the variables in full_map_string_list.
+    """
     
     if "spherical_tilt" in full_map_string_list and (x_var is None or y_var is None or R_hat is None):
         raise ValueError("Cannot compute spherical_tilt without R_hat, x_var and y_var.")
@@ -93,11 +134,6 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
                 map_dict[variable] = np.nan 
         return map_dict
 
-    cov = np.cov(vx,vy)
-    varx = cov[0,0]
-    vary = cov[1,1]
-    covxy = cov[0,1]
-
     common_error_args = {
         "df": df_errors,
         "error_type": error_type,
@@ -114,23 +150,23 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
         map_dict["mean_vy_error_low"],map_dict["mean_vy_error_high"] = get_error(true_value=map_dict["mean_vy"],function=np.mean,vel_y_var=vel_y_var,**common_error_args)
 
     if "std_vx" in full_map_string_list:
-        map_dict["std_vx"] = np.sqrt(varx)
+        map_dict["std_vx"] = np.std(vx)
         map_dict["std_vx_error_low"],map_dict["std_vx_error_high"] = get_error(true_value=map_dict["std_vx"],function=np.std,vel_x_var=vel_x_var,**common_error_args)
 
     if "std_vy" in full_map_string_list:
-        map_dict["std_vy"] = np.sqrt(vary)
+        map_dict["std_vy"] = np.std(vy)
         map_dict["std_vy_error_low"],map_dict["std_vy_error_high"] = get_error(true_value=map_dict["std_vy"],function=np.std,vel_y_var=vel_y_var,**common_error_args)
     
     if "anisotropy" in full_map_string_list:
-        map_dict["anisotropy"] = 1-vary/varx
+        map_dict["anisotropy"] = CV.calculate_anisotropy(vx=vx,vy=vy)
         map_dict["anisotropy_error_low"],map_dict["anisotropy_error_high"] = get_error(true_value=map_dict["anisotropy"],function=CV.calculate_anisotropy,vel_x_var=vel_x_var,vel_y_var=vel_y_var,**common_error_args)
 
     if "correlation" in full_map_string_list:
-        map_dict["correlation"] = covxy/np.sqrt(varx*vary)
+        map_dict["correlation"] = CV.calculate_correlation(vx=vx,vy=vy)
         map_dict["correlation_error_low"],map_dict["correlation_error_high"] = get_error(true_value=map_dict["correlation"],function=CV.calculate_correlation,vel_x_var=vel_x_var,vel_y_var=vel_y_var,**common_error_args)
     
     if "tilt_abs" in full_map_string_list:
-        map_dict["tilt_abs"] = np.degrees(np.arctan2(2.*covxy,abs(varx - vary))/2.)
+        map_dict["tilt_abs"] = CV.calculate_tilt(vx=vx,vy=vy,absolute=True)
         map_dict["tilt_abs_error_low"],map_dict["tilt_abs_error_high"] = get_error(true_value=map_dict["tilt_abs"],function=CV.calculate_tilt,vel_x_var=vel_x_var,vel_y_var=vel_y_var,tilt=True,absolute=True,**common_error_args)
     
     if "spherical_tilt" in full_map_string_list:
@@ -146,7 +182,7 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
               get_error(true_value=map_dict["abs_spherical_tilt"],function=CV.calculate_spherical_tilt,vel_x_var=x_var,vel_y_var=y_var,absolute=True,R_hat=R_hat, **common_error_args)
 
     if "tilt" in full_map_string_list:
-        map_dict["tilt"] = np.degrees(np.arctan2(2.*covxy,varx - vary)/2.)
+        map_dict["tilt"] = CV.calculate_tilt(vx=vx,vy=vy,absolute=False)
         map_dict["tilt_error"] = get_error(true_value=map_dict["tilt"],function=CV.calculate_tilt, vel_x_var=vel_x_var,vel_y_var=vel_y_var, tilt=True,absolute=False, **common_error_args)        
 
     compute_fractional_errors(map_dict,full_map_string_list)
