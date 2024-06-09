@@ -64,12 +64,11 @@ class MonteCarloConfig():
         self.symmetric = symmetric
         self.random_resampling_indices = random_resampling_indices
         
-        for k in self.affected_cuts_dict:
-            if k not in self.affected_cuts_lims_dict:
-                self.affected_cuts_lims_dict[k] = "both"
-
         # Set to {} here instead of in the default values of the arguments because default arguments are evaluated only once and hence are mutable.
         # See, e.g., https://www.30secondsofcode.org/python/s/mutable-default-arguments/
         self.affected_cuts_dict = {} if affected_cuts_dict is None else affected_cuts_dict
         self.affected_cuts_lims_dict = {} if affected_cuts_lims_dict is None else affected_cuts_lims_dict
         
+        for k in self.affected_cuts_dict:
+            if k not in self.affected_cuts_lims_dict:
+                self.affected_cuts_lims_dict[k] = "both"
