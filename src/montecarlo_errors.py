@@ -45,15 +45,16 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
 
     Returns
     -------
-    confidence_interval: tuple
-        The left,right limits of the confidence interval of the true value. They are given as a distance from the true value.
-        The confidence intervals are 1 pseudo-std (see explanation above), resulting from adding the mean of the MC values and the bias in quadrature.
-    MC_values: array
-        NumPy array containing all the MC values.
-    bias: float
-        The difference between the mean of the MC distribution and the true value.
-    within_cut: array
-        NumPy boolean array flagging the stars which, after the last perturbation, fell within the `config.affected_cuts_dict`
+    A Result object with the below attributes.
+        confidence_interval: tuple
+            The left,right limits of the confidence interval of the true value. They are given as a distance from the true value.
+            The confidence intervals are 1 pseudo-std (see explanation above), resulting from adding the mean of the MC values and the bias in quadrature.
+        MC_distribution: array
+            NumPy array containing all the MC values.
+        bias: float
+            The difference between the mean of the MC distribution and the true value.
+        within_cut: array
+            NumPy boolean array flagging the stars which, after the last perturbation, fell within the `config.affected_cuts_dict`
     """
 
     if vel_x_var is None and vel_y_var is None:

@@ -50,7 +50,7 @@ def get_std_bootstrap(function, config, vx=None, vy=None, tilt=False, absolute=T
         Only has effect if tilt=True. If None, the tilt is a vertex deviation, otherwise it is a spherical tilt.
 
     vectorised: bool, optional. Default is False.
-        Whether to perform the bootstrap repeats in parallel.
+        Whether to perform the bootstrap repeats in parallel for batches of size given by `batch_size`.
 
     batch_size: int, optional. Default is None.
         Only has effect if `vectorised` is True. Size of batches in which to divide the bootstrap repeats, to reduce memory usage.
@@ -59,19 +59,15 @@ def get_std_bootstrap(function, config, vx=None, vy=None, tilt=False, absolute=T
     Returns
     -------
     A Result object with the below attributes.
-
-    confidence_interval: tuple
-        The low and high limits of the confidence interval. They are given as a distance from the original sample estimate (or mean if config.from_mean is True).
-        If config.from_mean is False, the confidence interval is 1 pseudo-std (see explanation above), resulting from adding the standard error and bias in quadrature.
-    
-    bootstrap_distribution: 1D array of length `config.repeats`
-        All the bootstrap estimates.
-    
-    standard_error: float
-        The bootstrap standard error, computed as the standard deviation of the bootstrap distribution.
-
-    bias: float
-        The difference between the mean of the bootstrap distribution and the original sample estimate.
+        confidence_interval: tuple
+            The low and high limits of the confidence interval. They are given as a distance from the original sample estimate (or mean if config.from_mean is True).
+            If config.from_mean is False, the confidence interval is 1 pseudo-std (see explanation above), resulting from adding the standard error and bias in quadrature.
+        bootstrap_distribution: 1D array of length `config.repeats`
+            All the bootstrap estimates.
+        standard_error: float
+            The bootstrap standard error, computed as the standard deviation of the bootstrap distribution.
+        bias: float
+            The difference between the mean of the bootstrap distribution and the original sample estimate.
     """
     
     if vx is None and vy is None:
@@ -255,7 +251,7 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
                   bias = np.mean(sampling_values) - true_value,
                   bootstrap_biases = bootstrap_biases)
 
-def scipy_bootstrap(function, config, vx=None, vy=None, tilt=False,absolute=False,R_hat=None):
+def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, tilt=False,absolute=False,R_hat=None,batch_size=500):
     """
     Apply the BCa (bias-corrected and accelerated) bootstrap method, using `stats.scipy.bootstrap`.
     This method takes into account both bias and skew when computing the confidence interval.
@@ -268,15 +264,18 @@ def scipy_bootstrap(function, config, vx=None, vy=None, tilt=False,absolute=Fals
 
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
+    if confidence_level > 1 or confidence_level < 0:
+        raise ValueError("Confidence level must be a number between 0 and 1")
 
     res = stats.bootstrap(
             data=(vx,vy),
             statistic=lambda vx,vy: error_helpers.apply_function(function=function,vx=vx,vy=vy, R_hat=R_hat, tilt=tilt, absolute=absolute),
-            n_resamples=config.repeats,
-            vectorized=False,
+            n_resamples=repeats,
             paired=True,
-            confidence_level=0.68,
-            method="BCa"
+            confidence_level=confidence_level,
+            method="BCa",
+            vectorized=False,
+            batch=batch_size # Even if vectorised=False this is still needed otherwise for samples of ~10^5 stars it crashes on me
         )
     
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
