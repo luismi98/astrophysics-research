@@ -155,9 +155,9 @@ def get_kinematic_units_dict(degree_symbol = '^\circ'):
 
     return kinematic_units_dict
 
-def get_kinematic_titles_dict(vel_x_variable="l",vel_y_variable="b"):
+def get_kinematic_titles_dict():
     """
-    Get dictionaries for plot titles referring to full kinematic variable names.
+    Get dictionaries for plot titles referring to full kinematic variable names, with uppercase initial.
 
     Parameters
     ----------
@@ -172,34 +172,15 @@ def get_kinematic_titles_dict(vel_x_variable="l",vel_y_variable="b"):
         Dictionary of titles
     """
 
-    adjective_dict = {
-        'r' : "radial",
-        'l' : "longitudinal",
-        'b' : "latitudinal",
-        'R' : "radial",
-        '\phi': "tangential",
-        'x' : "x",
-        'y' : "y",
-        'M': "M",
-        'm': "m"
-    }
-    tilt_title_dict = {
-        'xy': "Rectangular tilt",
-        'lb': "Transversal tilt",
-        'R\phi' : "Cylindrical tilt",
-        'Mm':"Bar frame tilt",
-        'rl': "Vertex deviation"
-    }
-
     title_dict = {
-        "mean_vx" : f"Mean {adjective_dict[vel_x_variable]} velocity",
-        "mean_vy" : f"Mean {adjective_dict[vel_y_variable]} velocity",
+        "mean_vx" : f"Mean velocity",
+        "mean_vy" : f"Mean velocity",
         "anisotropy" : "Anisotropy",
         "anisotropy_error" : "Anisotropy error",
-        "std_x" : f"{adjective_dict[vel_x_variable]} standard deviation",
-        "std_y" : f"{adjective_dict[vel_y_variable]} standard deviation",
-        "tilt": tilt_title_dict[vel_x_variable+vel_y_variable],
-        "tilt_abs": tilt_title_dict[vel_x_variable+vel_y_variable],
+        "std_x" : "Standard deviation",
+        "std_y" : "Standard deviation",
+        "tilt": "Vertex deviation",
+        "tilt_abs": "Vertex deviation",
         "spherical_tilt": "Spherical tilt",
         "abs_spherical_tilt": "Spherical tilt absolute",
         "vertex" : "Vertex deviation",
