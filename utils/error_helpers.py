@@ -1,10 +1,16 @@
 import copy
 import numpy as np
 import warnings
+import pandas as pd
 
 def apply_function(function, vx, vy, R_hat, tilt, absolute):
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
+    
+    if type(vx) == pd.core.series.Series:
+        vx = vx.values
+    if type(vy) == pd.core.series.Series:
+        vy = vy.values
 
     if R_hat is None:
         if tilt:
