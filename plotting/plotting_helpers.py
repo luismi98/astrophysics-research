@@ -43,14 +43,11 @@ def get_truncated_colormap(cmap, minval=0.0, maxval=1.0, n=100):
             name = 'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval)
         )
 
-def get_centered_cmap_from_vminvmax(vmin,vmax,cmap=None):
+def get_centered_cmap_from_vminvmax(vmin,vmax,cmap=COOLWARM):
     """
     An illustration of its usage is shown in `illustrate_centered_cmap_usage()` in mixed_plots.py
     """
 
-    if cmap is None:
-        cmap = COOLWARM
-    
     low,high = calculate_centered_cmap_fractions(vmin,vmax,cmap.N)
     
     return get_truncated_colormap(cmap,low,high)
@@ -61,13 +58,13 @@ def get_reds_cmap(cmap=COOLWARM):
 def get_blues_cmap(cmap=COOLWARM):
     return get_truncated_colormap(cmap, minval=0., maxval=0.5)
 
-def choose_cmap(vmin,vmax,all_from_coolwarm=False):
+def choose_cmap(vmin,vmax,all_from_divergent_cmap=False,divergent_cmap=COOLWARM):
     if MF.is_negative(vmin*vmax):
-        return get_centered_cmap_from_vminvmax(vmin=vmin,vmax=vmax)
+        return get_centered_cmap_from_vminvmax(vmin=vmin,vmax=vmax,cmap=divergent_cmap)
     elif vmin >= 0:
-        return get_reds_cmap() if all_from_coolwarm else REDS
+        return get_reds_cmap(cmap=divergent_cmap) if all_from_divergent_cmap else REDS
     else:
-        return get_blues_cmap() if all_from_coolwarm else BLUES
+        return get_blues_cmap(cmap=divergent_cmap) if all_from_divergent_cmap else BLUES
     
 def get_cbar_extend(vmin,vmax, real_vmin, real_vmax):
     min_extend = vmin > real_vmin
