@@ -10,6 +10,132 @@ BAR_ANGLE = coordinates.get_bar_angle()
 Z0_CONST = coordinates.get_solar_height()
 R0_CONST = coordinates.get_solar_radius()
 
+def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48,\
+                           R0=R0_CONST, Z0=Z0_CONST, zabs = False, GSR = True, I_radius=4, choice="708main"):
+    """
+    Load, process, and save a simulation file (.gz) into a numpy array (.npy).
+
+    Parameters
+    ----------
+    simulation_filepath : str
+        Path to the simulation file to be loaded.
+    save_path : str
+        Directory path where the processed numpy arrays will be saved.
+    angle_list : list of float, optional
+        List of angles in degrees by which to rotate the bar relative to the l=0˚ line, clockwise. Default is given in coordinates.get_bar_angle()
+    axisymmetric : bool, optional
+        If True, the simulation will be processed to be axisymmetric. Default is False.
+    pos_factor : float, optional
+        Factor by which to scale the positions. Default is 1.7, which scales 708main's bar from 3kpc to 5kpc (size of Milky Way's bar).
+    vel_factor : float, optional
+        Factor by which to scale the velocities. Default is 0.48. See Debattista et al., 2017.
+    R0 : float, optional
+        Solar radius in kpc. Default is given in coordinates.get_solar_radius()
+    Z0 : float, optional
+        Solar height in kpc. Default is given in coordinates.get_solar_height()
+    zabs : bool, optional
+        If True, mirror data below the plane to above the plane to increase statistics. Default is False.
+    GSR : bool, optional
+        If True, transforms will be done assuming Galactic Standard of Rest. Default is True.
+    I_radius : float, optional
+        Radius within which to consider stars for computing the bar angle. Default is 4 kpc.
+    choice : str, optional
+        String identifier for the filename. Default is "708main".
+
+    Returns
+    -------
+    None
+
+    Saves (to `save_path`)
+    ------------------------
+    sim: 2D numpy array
+        Contains a row per star, and a column per variable of interest (e.g. stellar age).
+    
+    columns: 1D numpy array
+        Contains the name of each column in the sim. Current columns are:
+        ['x', 'y', 'z', 'vx', 'vy', 'vz', 'age', 'l', 'b', 'd', 'vr', 'vl', 'vb', 'pmlcosb', 'pmb', 'R', 'phi', 'vR', 'vphi']
+        And, if `axisymmetric` is False, also ['vM', 'vm']
+    
+    info: .txt file
+        Currently informs of the datatype and the columns.
+    """
+
+    if not os.path.isfile(simulation_filepath):
+        raise FileNotFoundError(f"File not found at: `{simulation_filepath}`.")
+    if not os.path.isdir(save_path):
+        raise FileNotFoundError(f"Directory to save to not found: `{save_path}`.")
+
+    sim = load_pynbody_sim(simulation_filepath)
+
+    if axisymmetric:
+        df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, Z0=Z0, zabs=zabs, GSR=GSR, axisymmetric=axisymmetric)
+
+        filename = build_filename(choice=choice,R0=R0,Z0=Z0,axisymmetric=True,zabs=zabs,pos_factor=pos_factor,GSR=GSR)
+
+        save_as_np(df, save_path=save_path, filename=filename)
+
+        return
+
+    bar_angle = compute_bar_angle(sim,I_radius=I_radius)
+    sim.rotate_z(-bar_angle) # align with x axis
+    
+    for angle in angle_list:
+        
+        sim.rotate_z(angle) #anti-clockwise rotation as seen from above, as we will then flip y
+
+        df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, angle=angle, zabs=zabs, GSR=GSR)
+
+        filename = build_filename(choice=choice,rot_angle=angle,R0=R0,Z0=Z0,axisymmetric=False,zabs=zabs,pos_factor=pos_factor,GSR=GSR)
+
+        save_as_np(df, save_path=save_path, filename=filename)
+
+        if len(angle_list) > 1:
+            # I could not create a deep copy of the SimSnap object, see https://stackoverflow.com/questions/58415397/
+            # Therefore, I re-use the same sim object in all iterations. Rotate it back so I can use it again.
+            sim.rotate_z(-angle)
+
+"""############################################# HELPER FUNCTIONS ####################################################"""
+
+def load_pynbody_sim(filepath):
+    sim = pynbody.load(filepath)
+
+    #https://pynbody.github.io/pynbody/reference/analysis.html
+    #Calculates the centre of mass and re-centers the simulation
+    #'hyb' mode is the shrink sphere method but faster because starts near a potential minimum 
+    pynbody.analysis.halo.center(sim, mode="hyb")
+    
+    #Re-positions and rotates the simulation such that the disk lies in the x-y plane
+    pynbody.analysis.angmom.faceon(sim, cen=(0,0,0))
+
+    return sim
+
+def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0=Z0_CONST,angle=BAR_ANGLE, zabs=True, GSR=True, axisymmetric=False):
+    positions = np.array(sim_stars['pos'].in_units('kpc'))
+    velocities = np.array(sim_stars['vel'].in_units('km s**-1'))
+    tform = np.array(sim_stars['tform']) #https://pynbody.github.io/pynbody/reference/derived.html
+
+    df = pd.DataFrame()
+    df['x'],df['y'],df['z'] = positions[:,0],positions[:,1],positions[:,2]         
+    df['vx'],df['vy'],df['vz'] = velocities[:,0],velocities[:,1],velocities[:,2]
+    df['age'] = tform.max() - tform
+    
+    if axisymmetric:
+        axisymmetrise(df)
+        angle = None
+
+    apply_factors(df, pos_factor, vel_factor)
+    flip_Lz(df)
+
+    # mirror below the plane onto above the plane to increase stats
+    if zabs:
+        df.loc[df.z<0, 'vz'] *= -1
+        df.loc[df.z<0, 'z'] *= -1
+
+    transform_coordinates(df, R0=R0, Z0=Z0, rot_angle=angle, GSR=GSR)
+
+    df.drop(columns = ['X','Y','Z','vX','vY','vZ','ra','dec','pmra','pmdec'], inplace=True)
+    return df
+
 def calculate_bar_angle_from_inertia_tensor(x,y,mass):
     if not len(x) == len(y) == len(mass):
         raise ValueError("The length of the star's positions and mass arrays did not match.")
@@ -121,33 +247,6 @@ def axisymmetrise(df):
     coordinates.Rphiz_to_xyz(df)
     coordinates.vRvphivz_to_vxvyvz(df)
 
-def convert_sim_to_df(sim_stars, pos_factor=1.7, vel_factor=0.48, R0=R0_CONST,Z0=Z0_CONST,angle=BAR_ANGLE, zabs=True, GSR=True, axisymmetric=False):
-    positions = np.array(sim_stars['pos'].in_units('kpc'))
-    velocities = np.array(sim_stars['vel'].in_units('km s**-1'))
-    tform = np.array(sim_stars['tform']) #https://pynbody.github.io/pynbody/reference/derived.html
-
-    df = pd.DataFrame()
-    df['x'],df['y'],df['z'] = positions[:,0],positions[:,1],positions[:,2]         
-    df['vx'],df['vy'],df['vz'] = velocities[:,0],velocities[:,1],velocities[:,2]
-    df['age'] = tform.max() - tform
-    
-    if axisymmetric:
-        axisymmetrise(df)
-        angle = None
-
-    apply_factors(df, pos_factor, vel_factor)
-    flip_Lz(df)
-
-    # mirror below the plane onto above the plane to increase stats
-    if zabs:
-        df.loc[df.z<0, 'vz'] *= -1
-        df.loc[df.z<0, 'z'] *= -1
-
-    transform_coordinates(df, R0=R0, Z0=Z0, rot_angle=angle, GSR=GSR)
-
-    df.drop(columns = ['X','Y','Z','vX','vY','vZ','pmlcosb','pmb'], inplace=True)
-    return df
-
 def save_as_np(df, save_path, filename):
     
     sim_array = np.array(df.values.astype(np.float32))
@@ -161,101 +260,3 @@ def save_as_np(df, save_path, filename):
 
     with open(save_path + filename + "_columns.txt", 'w') as f:
         f.write(f"Saved simulation with datatype np.float32.\nThe columns are: {list(column_array)}")
-
-def load_pynbody_sim(filepath):
-    sim = pynbody.load(filepath)
-
-    #https://pynbody.github.io/pynbody/reference/analysis.html
-    #Calculates the centre of mass and re-centers the simulation
-    #'hyb' mode is the shrink sphere method but faster because starts near a potential minimum 
-    pynbody.analysis.halo.center(sim, mode="hyb")
-    
-    #Re-positions and rotates the simulation such that the disk lies in the x-y plane
-    pynbody.analysis.angmom.faceon(sim, cen=(0,0,0))
-
-    return sim
-
-def load_process_and_save(simulation_filepath, save_path, angle_list = [BAR_ANGLE], axisymmetric=False,pos_factor = 1.7, vel_factor = 0.48,\
-                           R0=R0_CONST, Z0=Z0_CONST, zabs = False, GSR = True, I_radius=4, choice="708main"):
-    """
-    Load, process, and save a simulation file (.gz) into a numpy array (.npy).
-
-    Parameters
-    ----------
-    simulation_filepath : str
-        Path to the simulation file to be loaded.
-    save_path : str
-        Directory path where the processed numpy arrays will be saved.
-    angle_list : list of float, optional
-        List of angles in degrees by which to rotate the bar relative to the l=0˚ line, clockwise. Default is given in coordinates.get_bar_angle()
-    axisymmetric : bool, optional
-        If True, the simulation will be processed to be axisymmetric. Default is False.
-    pos_factor : float, optional
-        Factor by which to scale the positions. Default is 1.7, which scales 708main's bar from 3kpc to 5kpc (size of Milky Way's bar).
-    vel_factor : float, optional
-        Factor by which to scale the velocities. Default is 0.48. See Debattista et al., 2017.
-    R0 : float, optional
-        Solar radius in kpc. Default is given in coordinates.get_solar_radius()
-    Z0 : float, optional
-        Solar height in kpc. Default is given in coordinates.get_solar_height()
-    zabs : bool, optional
-        If True, mirror data below the plane to above the plane to increase statistics. Default is False.
-    GSR : bool, optional
-        If True, transforms will be done assuming Galactic Standard of Rest. Default is True.
-    I_radius : float, optional
-        Radius within which to consider stars for computing the bar angle. Default is 4 kpc.
-    choice : str, optional
-        String identifier for the filename. Default is "708main".
-
-    Returns
-    -------
-    None
-
-    Saves (onto `save_path`)
-    ------------------------
-    sim: 2D numpy array
-        Contains a row per star, and a column per variable of interest (e.g. stellar age).
-    
-    columns: 1D numpy array
-        Contains the name of each column in the sim.
-        Current columns are: 
-        ['x', 'y', 'z', 'vx', 'vy', 'vz', 'age', 'l', 'b', 'd', 'vr', 'vl', 'vb', 'ra', 'dec', 'pmra', 'pmdec', 'R', 'phi', 'vR', 'vphi']
-        And, if `axisymmetric` is False, also ['vM', 'vm']
-    
-    info: .txt file
-        Currently informs of the datatype and the columns.
-    """
-
-    if not os.path.isfile(simulation_filepath):
-        raise FileNotFoundError(f"File not found at: `{simulation_filepath}`.")
-    if not os.path.isdir(save_path):
-        raise FileNotFoundError(f"Directory to save to not found: `{save_path}`.")
-
-    sim = load_pynbody_sim(simulation_filepath)
-
-    if axisymmetric:
-        df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, Z0=Z0, zabs=zabs, GSR=GSR, axisymmetric=axisymmetric)
-
-        filename = build_filename(choice=choice,R0=R0,Z0=Z0,axisymmetric=True,zabs=zabs,pos_factor=pos_factor,GSR=GSR)
-
-        save_as_np(df, save_path=save_path, filename=filename)
-
-        return
-
-    bar_angle = compute_bar_angle(sim,I_radius=I_radius)
-    sim.rotate_z(-bar_angle) # align with x axis
-    
-    for angle in angle_list:
-        
-        sim.rotate_z(angle) #anti-clockwise rotation as seen from above, as we will then flip y
-
-        df = convert_sim_to_df(sim.s, pos_factor=pos_factor, vel_factor=vel_factor, R0=R0, angle=angle, zabs=zabs, GSR=GSR)
-
-        filename = build_filename(choice=choice,rot_angle=angle,R0=R0,Z0=Z0,axisymmetric=False,zabs=zabs,pos_factor=pos_factor,GSR=GSR)
-
-        save_as_np(df, save_path=save_path, filename=filename)
-
-        if len(angle_list) > 1:
-            # I could not do copy.copy(sim) to create a deep copy, see https://stackoverflow.com/questions/58415397/
-            # Therefore, I re-use the same sim object in all iterations. Rotate it back so I can use it again.
-            sim.rotate_z(-angle)
