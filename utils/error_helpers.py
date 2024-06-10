@@ -51,7 +51,7 @@ def compute_lowhigh_std(central_value, values):
 
     values_above = np.append(values_above, values_equal[:idx_equal_to_above])
     values_below = np.append(values_below, values_equal[idx_equal_to_above:])
-
+    
     if 0 < len(values_above) < 0.01*len(values):
         warnings.warn(f"Less than 1% of the values, namely {len(values_above)}, are above the central value. The corresponding std could be misleading as a result.")
     if 0 < len(values_below) < 0.01*len(values):
