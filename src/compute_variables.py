@@ -38,8 +38,11 @@ def calculate_mean(vx, keepdims = False):
 def calculate_var(vx, keepdims = False):
     return np.var(vx, axis=-1, keepdims=keepdims)
 
+def calculate_std(vx, keepdims = False):
+    return np.std(vx, axis=-1, keepdims=keepdims)
+
 def calculate_correlation(vx,vy):
-    return calculate_covariance(vx,vy) / np.sqrt( calculate_var(vx) * calculate_var(vy) )
+    return calculate_covariance(vx,vy) / calculate_std(vx) * calculate_std(vy)
 
 def calculate_anisotropy(vx,vy):
     return 1 - calculate_var(vy) / calculate_var(vx)
