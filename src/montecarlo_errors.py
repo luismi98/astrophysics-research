@@ -10,15 +10,17 @@ import utils.error_helpers as error_helpers
 def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
     """
     Compute a Monte Carlo error in the statistical variable of interest given individual uncertainties (one for each star), like so:
-        1. Given each star, take the value of the variable to be perturbed and adds to it a number extracted from a Gaussian of mean 0 and standard
+        1. Given each star, take the value of the variable to be perturbed and add to it a number extracted from a Gaussian of mean 0 and standard
             deviation the uncertainty in the measurement. 
         2. Do that for all the stars and repeat R number of times, each time computing the resulting statistic of interest. 
-        3. Split the distribution in two groups, for values below and above the true value.
+        3. Aggregate the statistics and split the distribution in two groups, for values below and above the true value.
         4. Values exactly equal to the true value are divided proportionally between the below and above split.
         5. Separately for the below and above splits, compute the mean squared deviation of the MC values from the true value.
-            If not done separately, this would be equivalent to adding the standard deviation of the MC distribution and its bias,
-             which is the difference between the mean of the MC distribution and the true value, in quadrature: https://stats.stackexchange.com/questions/646916
         6. The left and right limits of the confidence interval are then given as the square root of the mean squared left/right deviations from step 5.
+
+    The above changes when:
+    - config.symmetric is True: all the values are treated the same, without the below/above split, hence the low/high limits of the
+                                         confidence interval are the same distance away from the true value.
 
     Parameters
     ----------
@@ -26,15 +28,17 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
         Dataframe previous to applying any cuts affected by the perturbation (see src.MonteCarloConfig docstring).
     true_value: float
         Value of the statistic of interest as computed using the unperturbed population (with all cuts applied).
+    function: callable
+        Function used to compute the desired statistic whose MC error you want to estimate.
     config: MonteCarloConfig object
         See docstring in errorconfig.py
-    vel_x_var, vel_y_var: string or None
-        If string, indicate the horizontal/vertical velocity components. For example, "r" or "l".
+    vel_x_var, vel_y_var: string, optional. Default is None.
+        If string, they indicate the horizontal/vertical velocity components. For example, "r" or "l".
     tilt: boolean
         Whether the statistic of interest is a tilt (i.e. a vertex deviation).
     absolute: boolean
         Whether the tilt uses the absolute value of the dispersion difference. Only has effect if tilt is True.
-    R_hat: tuple or None
+    R_hat: tuple, optional. Default is None.
         If a tuple, the statistic of interest is a spherical tilt, and R_hat indicates the 2D coordinates of the center of the bin of selected stars.
     show_vel_plots: boolean
         Whether to show a velocity plot of the stars after the perturbation.
