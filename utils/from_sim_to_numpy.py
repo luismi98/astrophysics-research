@@ -185,13 +185,13 @@ def compute_bar_angle(sim,I_radius=4):
     return maj_axis_angle
 
 def apply_factors(df, position_factor, velocity_factor):
-    df.x = df.x*position_factor
-    df.y = df.y*position_factor
-    df.z = df.z*position_factor
+    df.x *= position_factor
+    df.y *= position_factor
+    df.z *= position_factor
 
-    df.vx = df.vx*velocity_factor
-    df.vy = df.vy*velocity_factor
-    df.vz = df.vz*velocity_factor
+    df.vx *= velocity_factor
+    df.vy *= velocity_factor
+    df.vz *= velocity_factor
 
 def flip_Lz(df):
     """
@@ -207,16 +207,15 @@ def flip_Lz(df):
     
     Then change the sign of z and vz to have a right-handed system. Note x grows from the Sun towards the GC.
     """
-    df.y = df.y*(-1)
-    df.vy = df.vy*(-1)
+    df.y *= -1
+    df.vy *= -1
 
-    df.z = df.z*(-1)
-    df.vz = df.vz*(-1)
+    df.z *= -1
+    df.vz *= -1
 
 def transform_coordinates(df, R0=R0_CONST, Z0=Z0_CONST, GSR=True, rot_angle=None):
 
     v_sun = coordinates.get_solar_velocity(changing_reference_frame = not GSR)
-    if GSR: assert v_sun == [0,0,0], "`v_sun` needs to be zero for the simulation as velocities are already in the GSR"
 
     coordinates.xyz_to_XYZ(df,R0=R0,Z0=Z0)
     coordinates.vxvyvz_to_vXvYvZ(df,v_sun=v_sun,R0=R0,Z0=Z0)
