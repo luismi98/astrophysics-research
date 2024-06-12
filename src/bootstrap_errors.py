@@ -267,16 +267,34 @@ def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, 
     if confidence_level > 1 or confidence_level < 0:
         raise ValueError("Confidence level must be a number between 0 and 1")
 
-    res = stats.bootstrap(
-            data=(vx,vy),
-            statistic=lambda vx,vy: error_helpers.apply_function(function=function,vx=vx,vy=vy, R_hat=R_hat, tilt=tilt, absolute=absolute),
-            n_resamples=repeats,
-            paired=True,
-            confidence_level=confidence_level,
-            method="BCa",
-            vectorized=False,
-            batch=batch_size # Even if vectorised=False this is still needed otherwise for samples of ~10^5 stars it crashes on me
-        )
+    if vx is not None and vy is not None:
+        res = stats.bootstrap(
+                data=(vx,vy),
+                statistic=lambda vx,vy: error_helpers.apply_function(function=function,vx=vx,vy=vy, R_hat=R_hat, tilt=tilt, absolute=absolute),
+                n_resamples=repeats,
+                paired=True,
+                confidence_level=confidence_level,
+                method="BCa",
+                vectorized=False,
+                batch=batch_size # Even if vectorised=False this is still needed otherwise for samples of ~10^5 stars it crashes on me
+            )
+    else:
+        if vx is None:
+            v = vy
+        elif vy is None:
+            v = vx
+
+        res = stats.bootstrap(
+                data=(v,),
+                statistic=function, # single-component functions are mean and std, which do not require keyword arguments
+                n_resamples=repeats,
+                paired=True,
+                confidence_level=confidence_level,
+                method="BCa",
+                vectorized=False,
+                batch=batch_size # Even if vectorised=False this is still needed otherwise for samples of ~10^5 stars it crashes on me
+            )
+        
     
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
