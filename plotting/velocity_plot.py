@@ -6,186 +6,156 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import src.compute_variables as CV
-import src.bootstrap_errors as CE
+import src.bootstrap_errors as bootstrap
 from src.errorconfig import BootstrapConfig
-
-import utils.miscellaneous_functions as MF
 import plotting.plotting_helpers as PH
+import plotting.map_functions as mapf
+import utils.error_helpers as EH
 
-# This function is a monstruosity I wrote long ago. When I have some time I will break it down into pieces
-def velocity_plot(df,vx_component,vy_component, ax=None,vel_lims=[[-400,400],[-400,400]], bootstrap_repeat=500, tilt_abs=False,bins=30, cmap='coolwarm', alpha=0.7, smoothing=-1, contour_levels=7, 
-                  seaborn=False, cbar=False, contours_bool=True,colour_var = None, c=None,colour_cmap='viridis', tickstep=100, size_ticks=20, 
-                  size_axislabels=25, size_variables=20, size_title=20, title_str= '', population_string = '', title_limits=None, fileindex=None, 
-                  show=True, save_path="/Users/Luismi/Desktop/MRes_UCLan/", save=False, dpi=200, fileformat='.png', filename=None, return_dict = False):
-    
-    vx,vy = df[f"v{vx_component}"].values,df[f"v{vy_component}"].values
+def velocity_plot(vx, vy, ax=None, bins=30, vel_vx_var=None, vel_vy_var=None, vel_lims=None, bootstrap_repeats=500, ellipse_bool=True,
+                  contours_bool=True, contour_kws=None, contour_smoothing=1, seaborn_contours=False, contour_cbar_bool=False, 
+                  c=None, scatter_colour_cbar=False, scatter_colour_var = None, scatter_cmap = "coolwarm",
+                  text_bool=False, variables_and_plot_positions=None, text_kws=None, axis_labels="both"):
 
-    star_number = len(vx)
-    if star_number == 0: raise ValueError("There are no stars to plot...")
-    if np.sum(np.isnan(vx)) or np.sum(np.isnan(vy)): raise ValueError("There are some NaNs in the velocities, get rid of them first")
-    
-#------------------------------------------------------------------------------------------------------------------------
-#---- PLOT --------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------
-    
-    if smoothing == -1: # default
-        smoothing = 1 if star_number > 300 else 2
-        print("Using smoothing",smoothing)
-    elif smoothing == -2:
-        smoothing = 2 if star_number > 300 else 3
-        print("Using smoothing",smoothing)
+    if len(vx) != len(vy):
+        raise ValueError("`vx` and `vy` must have the same length!")
+    if len(vx) == 0 or len(vy) == 0:
+        raise ValueError("There are no stars to plot...")
     
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         
-    if colour_var is None:
+    if c is None:
         ax.scatter(vx, vy, marker='.', color='grey')
     else:
-        if c is None:
-            raise ValueError("`colouring` is set to True but no colours were provided in the `c` variable")
-        scat = ax.scatter(vx,vy,marker='.',s=15,c=c,cmap=colour_cmap)
+        scat = ax.scatter(vx,vy,marker='.',s=15,c=c,cmap=scatter_cmap)
         
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        
-        cbar_label = {
-            'd': r"$d$ [kpc]",
-            'l': r"$l$ $[^\circ]$",
-            "phi": r"$\phi$ $[^\circ]$",
-            "R": r"$R$ [kpc]",
-        }
-        
-        cbar_colour = plt.colorbar(scat,cax=cax)
-        cbar_colour.set_label(label=cbar_label[colour_var])
-    
-    if cbar:
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
+        if scatter_colour_cbar:
+            divider = make_axes_locatable(ax)
+            scatter_cax = divider.append_axes("right", size="5%", pad=0.05)
+
+            cbar_colour = plt.colorbar(scat,cax=scatter_cax)
+            cbar_colour.set_label(label=f"{mapf.get_symbol(scatter_colour_var)} [{mapf.get_units(scatter_colour_var)}]")
     
     if contours_bool:
-        if seaborn:
+        default_contour_kws = {"alpha":0.7, "levels": 7, "cmap": "coolwarm"}
+        if contour_kws is None:
+            contour_kws = {}
+        for kw in default_contour_kws:
+            if kw not in contour_kws:
+                contour_kws[kw] = default_contour_kws[kw]
+
+        if contour_cbar_bool:
+            divider = make_axes_locatable(ax)
+            contour_cax = divider.append_axes("right", size="5%", pad=0.05)
+
+        if seaborn_contours:
             cbar_label = r'Probability density [$\rm s^{2} \hspace{0.3} km^{-2}$]'
 
             cut_lim = 30
 
-            sns.kdeplot(vx, vy, cmap=cmap, fill=True, shade_lowest=True, cut=cut_lim, \
-                    alpha=alpha, ax=ax, cbar=cbar, cbar_ax = cax, cbar_kws={'label': cbar_label})
+            sns.kdeplot(vx, vy, fill=True, shade_lowest=True, cut=cut_lim, ax=ax, **contour_kws,
+                        cbar=contour_cbar_bool, cbar_ax = contour_cax, cbar_kws={'label': cbar_label})
 
-            sns.kdeplot(vx, vy, cmap=cmap, fill=False, shade_lowest=True, cut=cut_lim, \
-                alpha=1, ax=ax, linewidths=2, cbar=cbar, cbar_ax=cax,cbar_kws={'label': cbar_label}) #; ax.collections[1].set_alpha(0)
+            sns.kdeplot(vx, vy, fill=False, shade_lowest=True, cut=cut_lim, alpha=1, ax=ax, linewidths=2, **contour_kws,
+                        cbar=contour_cbar_bool, cbar_ax=contour_cax,cbar_kws={'label': cbar_label})
         else:
+
+            if vel_lims is None:
+                vel_lims = [[-400,400],[-400,400]]
+
             h = np.histogram2d(vx,vy,bins=bins,range=vel_lims)
-            cont = ax.contourf(gaussian_filter(h[0].T,smoothing), levels=contour_levels, extent=[vel_lims[0][0],vel_lims[0][1],vel_lims[1][0],vel_lims[1][1]], alpha=alpha, cmap=cmap)
+            cont = ax.contourf(gaussian_filter(h[0].T,contour_smoothing), **contour_kws, 
+                               extent=[vel_lims[0][0],vel_lims[0][1],vel_lims[1][0],vel_lims[1][1]])
 
-            if cbar:
-                cbar = plt.colorbar(cont,cax=cax)
-                cbar.set_label(label=r"$N$",labelpad=20,rotation=0)
+            if contour_cbar_bool:
+                contour_cbar_bool = plt.colorbar(cont,cax=contour_cax)
+                contour_cbar_bool.set_label(label=r"$N$",labelpad=20,rotation=0)
 
-#------------------------------------------------------------------------------------------------------------------------
-#---- VALUES ------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------
+    if ellipse_bool:
+        plot_ellipse(ax,vx,vy)
 
-    bootstrapconfig = BootstrapConfig(repeats=bootstrap_repeat,symmetric=True)
-
-    variables_dict = {
-        "vertex": CV.calculate_tilt(vx,vy,absolute=False),
-        "vertex_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=False,config=bootstrapconfig).confidence_interval[0],
-        "vertex_abs": CV.calculate_tilt(vx,vy,absolute=True),
-        "vertex_abs_error": CE.get_std_bootstrap(function=CV.calculate_tilt,vx=vx,vy=vy,tilt=True,absolute=True,config=bootstrapconfig).confidence_interval[0],
-        "anisotropy": CV.calculate_anisotropy(vx,vy),
-        "anisotropy_error": CE.get_std_bootstrap(function=CV.calculate_anisotropy,vx=vx,vy=vy,config=bootstrapconfig).confidence_interval[0],
-        "correlation": CV.calculate_correlation(vx,vy),
-        "correlation_error": CE.get_std_bootstrap(function=CV.calculate_correlation,vx=vx,vy=vy,config=bootstrapconfig).confidence_interval[0]
-    }
-    #for key in variables_dict:
-    #    print(variables_dict[key])
-    #    dec = 1 if key in ['vertex','vertex_error'] else 2
-    #    variables_dict[key] = return_int_or_dec(variables_dict[key],dec=dec)
-    #    print(variables_dict[key],'\n')
+    if axis_labels in ["x","both"]:
+        ax.set_xlabel(r"$v_%s$ [km $\rm s^{-1}$]"%vel_vx_var)
+    if axis_labels in ["y","both"]:
+        ax.set_ylabel(r"$v_%s$ [km $\rm s^{-1}$]"%(vel_vy_var if vel_vy_var!="phi" else "\phi"))
+    
+    if text_bool:
         
-#------------------------------------------------------------------------------------------------------------------------
-#---- ELLIPSE -----------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------        
+        if variables_and_plot_positions is None:
+            variables_and_plot_positions = {
+                "number": [0.75, 0.97],
+                "anisotropy": [0.025, 0.07],
+                "correlation": [0.64, 0.07],
+                "tilt_abs": [0.025, 0.97],
+            }
+
+        show_variable_values_text(ax,vel_x_var=vel_vx_var,vel_vy_var=vel_vy_var,vx=vx,vy=vy,variables_and_plot_positions=variables_and_plot_positions,
+                                  bootstrap_repeats=bootstrap_repeats, kws=text_kws)
+    
+    return ax
+
+def show_variable_values_text(ax, vel_x_var, vel_y_var, vx, vy, variables_and_plot_positions, bootstrap_repeats, kws):
+
+    def build_text_kws(text_kws):
+        default_textbox_kws = dict(boxstyle='round', facecolor='linen', alpha=1)
+        default_text_kws = dict(fontsize="small", verticalalignment='top', bbox=default_textbox_kws)
+
+        if text_kws is None:
+            text_kws = {}
+        if text_kws["bbox"] is None:
+            textbox_kws = {}
+        
+        for kw in default_text_kws:
+            if kw not in text_kws:
+                textbox_kws[kw] = default_text_kws[kw]
+        for box_kw in default_textbox_kws:
+            if box_kw not in text_kws["bbox"]:
+                text_kws["bbox"][box_kw] = default_textbox_kws[box_kw]
+
+        return text_kws
+    
+    kws = build_text_kws(text_kws=kws)
+
+    bootstrapconfig = BootstrapConfig(repeats=bootstrap_repeats,symmetric=True)
+    kinematic_symbols_dict = mapf.get_kinematic_symbols_dict(vel_x_variable=vel_x_var,vel_y_variable=vel_y_var)
+    kinematic_units_dict = mapf.get_kinematic_units_dict()
+
+    for variable in variables_and_plot_positions:
+        if "spherical" in variable:
+            raise ValueError("Did not expect a spherical tilt")
+        
+        x,y = variables_and_plot_positions[variable]
+
+        if variable == "number":
+            ax.text(x,y,fr"$N={len(vx)}$",transform=ax.transAxes,**kws)
+            continue
+
+        symbol,units = kinematic_symbols_dict[variable], kinematic_units_dict[variable]
+
+        func, vx, vy, _, tilt, absolute = EH.get_function_parameters(variable, vx=vx, vy=vy)
+
+        value = EH.apply_function(function=func, vx=vx,vy=vy,tilt=tilt,absolute=absolute)
+        error = bootstrap.get_std_bootstrap(function=func,config=bootstrapconfig, vx=vx,vy=vy,tilt=tilt,absolute=absolute).confidence_interval[0]
+
+        text = fr"${symbol}={value:.2f} \pm {error:.2f} {units}$"
+
+        ax.text(x,y,text,transform=ax.transAxes,**kws)
+
+def plot_ellipse(ax,vx,vy,radius_factor=2,max_vector_factor=2.5):
 
     cov = np.cov(vx, vy)
     eigenvalues = np.linalg.eig(cov)[0]
-    radius = 2*np.sqrt(max(eigenvalues)) #radius of 2 sigma, i.e. the 95% confidence level 
+    radius = radius_factor*np.sqrt(max(eigenvalues))
     ratio = np.sqrt(min(eigenvalues)/max(eigenvalues))
     centre = [np.mean(vx), np.mean(vy)]
-    x_ellipse, y_ellipse = PH.get_ellipse_coords(radius, ratio, variables_dict['vertex'])#, centre = centre)
+    x_ellipse, y_ellipse = PH.get_ellipse_coords(radius, ratio, CV.calculate_tilt(vx,vy,absolute=False))
     ax.plot(x_ellipse+centre[0], y_ellipse+centre[1], lw=4,color='red')
     eigvectors = np.linalg.eig(cov)[1]
     raw_max_vector = eigvectors[:,eigenvalues.argmax()]
-    max_vector = raw_max_vector*2.5*np.sqrt(max(eigenvalues))
+    max_vector = raw_max_vector*max_vector_factor*np.sqrt(max(eigenvalues))
 
     vector_plot_data = [[max_vector[0], -max_vector[0]],[max_vector[1], -max_vector[1]]]
     vector_plot_data[0] += centre[0]
     vector_plot_data[1] += centre[1]
     ax.plot(vector_plot_data[0],vector_plot_data[1], lw=4, color='red')
-        
-#------------------------------------------------------------------------------------------------------------------------
-#---- TEXT AND LABELS ---------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------
-
-    ax.set_xlabel(r"$v_%s$ [km $\rm s^{-1}$]"%vx_component, size=size_axislabels)
-    ax.set_ylabel(r"$v_%s$ [km $\rm s^{-1}$]"%(vy_component if vy_component!="phi" else "\phi"), size=size_axislabels)
-    
-    if tilt_abs:
-        vertex_text = r"$\tilde{l}_{\mathrm{v}}=%.1f$ $\pm$ $%.1f^\circ$"%(variables_dict['vertex_abs'],variables_dict['vertex_abs_error'])
-    else:
-        vertex_text = r"$l_{\mathrm{v}}=%.1f$ $\pm$ $%.1f^\circ$"%(variables_dict['vertex'],variables_dict['vertex_error'])
-    ani_text = r"$\beta_{rl}=%.2f$ $\pm$ $%.2f $"%(variables_dict['anisotropy'],variables_dict['anisotropy_error'])
-    corr_text = r"$\rho_{rl}=%.2f$ $\pm$ $%.2f $"%(variables_dict['correlation'],variables_dict['correlation_error'])
-    number_text = fr"$N={star_number}$"
-
-    text_box = dict(boxstyle='round', facecolor='linen', alpha=1)
-    ax.text(0.025, 0.97, vertex_text, transform=ax.transAxes, fontsize=size_variables, verticalalignment='top', bbox=text_box)
-    #ax.text(left_coord, vertex_y_coord, vertex_text, fontsize=size_variables, verticalalignment='top', bbox=text_box)
-    ax.text(0.75, 0.97, number_text, transform=ax.transAxes, fontsize=size_variables, verticalalignment='top', bbox=text_box)
-    ax.text(0.025, 0.07, ani_text, transform=ax.transAxes, fontsize=size_variables, verticalalignment='top', bbox=text_box)
-    ax.text(0.64, 0.07, corr_text, transform=ax.transAxes, fontsize=size_variables, verticalalignment='top', bbox=text_box)
-
-    if title_limits is not None:
-        title = fr"${title_str}$\n{np.float16(title_limits[0])} $\leq$ $b[°]$ $<$ {np.float16(title_limits[1])}"
-        ax.set_title(title, size_title=size_title)
-        if filename is None:
-            filename = "velocity_"+population_string+"_i"+str(fileindex)+'_'+str(MF.check_int(np.float16(title_limits[0])))+'b'+str(MF.check_int(np.float16(title_limits[1])))
-    else:
-        if title_str != '':
-            ax.set_title(title_str, size=size_title)
-        if filename is None:
-            filename = population_string
-        
-#------------------------------------------------------------------------------------------------------------------------
-#---- AXES ------------------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------
-           
-    ax.set_xlim(vel_lims[0])
-    ax.set_ylim(vel_lims[1])
-    #ax.minorticks_on()
-
-    ax.set_xticks(np.arange(vel_lims[0][0], vel_lims[0][1], tickstep)) #(-300,400,100)
-    ax.set_yticks(np.arange(vel_lims[1][0], vel_lims[1][1], tickstep))
-    ax.tick_params(axis="x", labelsize=size_ticks)
-    ax.tick_params(axis="y", labelsize=size_ticks)
-
-    ax.axvline(0, color='grey', linestyle='--')
-    ax.axhline(0, color='grey', linestyle='--')
-    
-    ax.set_aspect("equal")
-
-#------------------------------------------------------------------------------------------------------------------------
-#---- SHOW AND SAVE -----------------------------------------------------------------------------------------------------
-#------------------------------------------------------------------------------------------------------------------------
-
-    if save:
-        plt.savefig(save_path+filename+fileformat, bbox_inches='tight',dpi=dpi)
-        print("Saved:\t"+save_path+filename+fileformat)
-    
-    if show:
-        plt.show()
-    else:
-        plt.close()
-    
-    if return_dict:
-        return variables_dict
