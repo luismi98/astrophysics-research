@@ -140,9 +140,9 @@ def get_kinematic_units_dict(degree_symbol = '^\circ'):
 
     kinematic_units_dict = {}
     for angular_variable in ["tilt","tilt_abs","spherical_tilt"]:
-        kinematic_units_dict[angular_variable] = fr" $[{degree_symbol}]$"
+        kinematic_units_dict[angular_variable] = degree_symbol
     for vel_variable in ['mean_vx','mean_vy',"std_vx","std_vy"]:
-        kinematic_units_dict[vel_variable] = r"$\hspace{0.3} [\rm km \hspace{0.1} s^{-1}]$"
+        kinematic_units_dict[vel_variable] = "km \hspace{0.1} s^{-1}"
     for unitless_variable in ["anisotropy","correlation"]:
         kinematic_units_dict[unitless_variable] = ''
 
