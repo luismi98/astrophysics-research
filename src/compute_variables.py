@@ -42,7 +42,7 @@ def calculate_std(vx, keepdims = False):
     return np.std(vx, axis=-1, keepdims=keepdims)
 
 def calculate_correlation(vx,vy):
-    return calculate_covariance(vx,vy) / calculate_std(vx) * calculate_std(vy)
+    return calculate_covariance(vx,vy) / ( calculate_std(vx) * calculate_std(vy) )
 
 def calculate_anisotropy(vx,vy):
     return 1 - calculate_var(vy) / calculate_var(vx)
