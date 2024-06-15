@@ -75,10 +75,8 @@ def apply_function(function, vx, vy, R_hat, tilt, absolute):
     if vx is None and vy is None:
         raise ValueError("At least one of vx and vy must not be None.")
     
-    if type(vx) == pd.core.series.Series:
-        vx = vx.values
-    if type(vy) == pd.core.series.Series:
-        vy = vy.values
+    vx = np.array(vx) if vx is not None else None
+    vy = np.array(vy) if vy is not None else None
 
     if R_hat is None:
         if tilt:
