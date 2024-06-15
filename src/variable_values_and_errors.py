@@ -129,7 +129,6 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
         map_dict["n_density"] = n_density
     
     if number < min_number:
-        print(f"Found `{number}` stars, less than the min of `{min_number}`")
         for variable in full_map_string_list:
             if variable != "number" and variable != "n_density":
                 map_dict[variable] = np.nan 

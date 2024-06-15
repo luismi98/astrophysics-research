@@ -118,7 +118,7 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
         if vel_x_var is not None and vel_y_var is not None and show_vel_plots and i%show_freq == 0:
             velocity_plot(MC_vx,MC_vy,**velocity_kws)
 
-        MC_values[i] = error_helpers.apply_function(function,MC_vx,MC_vy,R_hat,tilt,absolute)
+        MC_values[i] = error_helpers.apply_function(function=function,vx=MC_vx,vy=MC_vy,R_hat=R_hat,tilt=tilt,absolute=absolute)
 
     if tilt and not absolute:
         error_helpers.correct_tilt_branch(MC_values, true_value)

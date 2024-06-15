@@ -23,7 +23,7 @@ def velocity_plot(vx, vy, ax=None, bins=30, vel_x_var=None, vel_y_var=None, vel_
 
     if len(vx) != len(vy):
         raise ValueError("`vx` and `vy` must have the same length!")
-    if len(vx) == 0 or len(vy) == 0:
+    if len(vx) == 0:
         raise ValueError("There are no stars to plot...")
     
     if ax is None:
