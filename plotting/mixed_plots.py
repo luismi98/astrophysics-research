@@ -8,7 +8,9 @@ from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
 import matplotlib.cm as cm
 
+import utils.coordinates as coordinates
 import utils.miscellaneous_functions as MF
+
 import plotting.plotting_helpers as PH
 import plotting.map_functions as mapf
 
@@ -579,3 +581,24 @@ def show_bootstrap_distribution_with_CI(true_value, bootstrap_distribution, conf
     
     if given_ax is None:
         plt.show()
+
+def illustrate_phi_estimation_from_lR(l=11, R=3.5, R0=coordinates.get_solar_radius()):
+    fig,ax=plt.subplots()
+
+    phi1,phi2,d1,d2 = coordinates.get_phi_from_lR(l=l,R=R,return_d=True)
+    
+    for phi,d in [[phi1,d1], [phi2,d2]]:
+        xmax = d*np.cos(np.radians(l)) - R0
+
+        ax.plot([0,xmax],[0,R*np.sin(np.radians(phi))], label=r"$\phi=%.3f^\circ$"%phi)
+
+        if d == max([d1,d2]):
+            ax.plot([-R0,xmax],[0,d*np.sin(np.radians(l))], label=fr"$l={l}^\circ$", color="k")
+
+    plot_circle(ax=ax, radius=R, label=r"$R_\mathrm{GC}=%.1f~$kpc"%R, linestyle="--")
+    ax.scatter([0],[0],marker="x",color="k")
+    ax.set_ylim(bottom=0)
+    ax.legend()
+
+    ax.set_aspect("equal")
+    plt.show()
