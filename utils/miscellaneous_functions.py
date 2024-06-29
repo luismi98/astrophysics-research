@@ -106,15 +106,80 @@ def is_negative(value):
 
 def get_sign_string(value):
     return r"$-$" if is_negative(value) else ""
+
+def count_nonzero_digits(number, intercalated_zero_limit=None):
+    """
+    Given a number, count the number of significant digits before the decimal point.
+    This is useful to represent the number in scientific format with the right precision.
     
-def get_exponential_form(x):
-    for index, i in enumerate(str(x)):
-        if i == '.':
+    Parameters
+    ----------
+    number: float
+    intercalated_zero_limit: int or None
+        Stop counting after this number of zeros are found.
+    
+
+    Examples
+    --------
+    >> number = 9500.3
+    >> count_nonzero_digits(number)
+    2
+
+    >> number = 95002
+    >> count_nonzero_digits(number)
+    5
+
+    >> number = 95002
+    >> count_nonzero_digits(number, intercalated_zero_limit=2)
+    2
+    """
+    
+    count = 0
+    intercalated_zeros = 0
+    for digit in str(number):
+        if digit == ".":
             break
-    if index < 2:
-        return x
-    result_str = fr"${str(x)[0]}\cdot 10^{index}$" if str(x)[0] != '1' else fr"$10^{index}$"
-    return result_str
+        elif digit != "0":
+            count += 1 + intercalated_zeros
+            intercalated_zeros = 0
+        elif digit == "0":
+            intercalated_zeros += 1
+            if intercalated_zeros == intercalated_zero_limit:
+                break
+    return count
+
+def get_exponential_value_str(number, ndecimals=None):
+    """
+    This is in case a large number wants to be used as a string for example in a filename.
+    Note decimals in the original number will be ignored (except for rounding if appropriate).
+
+    Parameters
+    ----------
+    number: float
+        Number to represent in exponential format
+    ndecimals: int or None
+        Hard limit on number of decimals shown. If None, show all of the significant digits available.
+
+    Returns
+    -------
+    result: string
+
+    Examples
+    --------
+    >> MF.get_exponential_value_str(925000)
+    9.25e+05
+
+    >> MF.get_exponential_value_str(12345.5)
+    1.2346e+04
+
+    >> MF.get_exponential_value_str(12345.5, ndecimals=2)
+    1.23e+04
+    """
+    ndecimals_to_show = count_nonzero_digits(number)-1
+    if ndecimals is not None:
+        ndecimals_to_show = min(ndecimals_to_show, ndecimals)
+
+    return str("{:.%ie}"%(ndecimals_to_show)).format(number)
 
 def get_exponent(x):
     for index, i in enumerate(str(x)):
