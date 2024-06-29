@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.ndimage import gaussian_filter
+
 import utils.miscellaneous_functions as MF
 
 def get_map_string_lists(fractional_errors=False):
@@ -388,3 +390,21 @@ def remove_overlapping_ticks(ax, next_ax, vminvmax, next_vminvmax, axis="y", whi
             remove_ticklabel(ax, ticks, axis=axis, which="bottom")
         if which in ["top","both"]:
             remove_ticklabel(next_ax, next_ticks, axis=axis, which="top")
+
+###################################################################################################################
+
+def get_2d_hist_counts(df, x_variable, y_variable, bins, extent, stellar_mass=9.5*10**3, gauss_sigma=1, density=True, mass_density_bool=True):
+    """
+    Parameters
+    ----------
+    stellar_mass: float. 
+        Mass of each particle, needed if wanting to compute a mass density.
+        Default is 9.5*10**3. See bottom left of page 8 in Debattista 2017.
+    """
+
+    counts,_,_ = np.histogram2d(df[x_variable],df[y_variable],bins=bins,range=extent,density=density)
+    counts = counts.T*len(df) #Multiply by total number to get a surface density rather than probability density
+    if mass_density_bool:
+        counts *= stellar_mass
+    
+    return gaussian_filter(counts, gauss_sigma)
