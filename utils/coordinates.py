@@ -47,6 +47,31 @@ def rect_to_ang_1D(rect,d=None,x=None):
 
     return np.degrees(np.sin(rect/d)) if x is None else np.degrees(np.tan(rect/x))
 
+def get_phi_from_lR(l,R, R0=8.1, return_d=False):
+    """
+    Given a line-of-sight (from the Sun) of a certain longitude, calculate the angle phi such that a rod of length R with a tip at the GC 
+    would have the other tip ending at that line-of-sight.
+
+    If `return_d`, it returns the distance from the Sun at which the crossing happens.
+    
+    See plotting.mixed_plots.illustrate_phi_estimation_from_lR for an illustration
+
+    Note there are always 2 solutions. One in the 1st quadrant, the other in the 2nd.
+    """
+    
+    sinl,cosl = np.sin(np.radians(l)), np.cos(np.radians(l))
+
+    d1 = R0*cosl - np.sqrt(R**2 - R0**2 * sinl**2) # After solving the quadratic equation resulting from the Law of Cosines
+    d2 = R0*cosl + np.sqrt(R**2 - R0**2 * sinl**2)
+    
+    phi1 = 180 - np.degrees(np.arcsin(d1*sinl/R))
+    phi2 = np.degrees(np.arcsin(d2*sinl/R))
+    
+    if return_d:
+        return phi1, phi2, d1, d2
+    else:
+        return phi1, phi2
+    
 def get_bar_angle():
     return 27
 
