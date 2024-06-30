@@ -38,7 +38,10 @@ def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,mo
         if vel_y_var is not None:
             vy = df["v"+vel_y_var].values
 
-        result = bootstrap.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,config=bootstrapconfig)
+        if bootstrapconfig.scipy:
+            result = bootstrap.scipy_bootstrap(function=function,repeats=bootstrapconfig.repeats,vx=vx,vy=vy,tilt=tilt,absolute=absolute,R_hat=R_hat,CI_as_distance=True)
+        else:
+            result = bootstrap.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,config=bootstrapconfig)
 
         return result.confidence_interval
     

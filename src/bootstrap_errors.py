@@ -251,15 +251,18 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
                   bias = np.mean(sampling_values) - true_value,
                   bootstrap_biases = bootstrap_biases)
 
-def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, tilt=False,absolute=False,R_hat=None,batch_size=500):
+def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, tilt=False,absolute=False,R_hat=None,batch_size=500,CI_as_distance=False):
     """
     Apply the BCa (bias-corrected and accelerated) bootstrap method, using `stats.scipy.bootstrap`.
     This method takes into account both bias and skew when computing the confidence interval.
+    
+    Parameters
+    ----------
+    CI_as_distance: boolean, optional. Default is False.
+        If True, give the low/high limits of the confidence interval are given as a distance from the original sample estimate, to make it
+        consistent with get_std_bootstrap. Otherwise, the low/high limits are given as values of the statistic.
 
-    Note: the low/high limits of the confidence interval are given as values of the statistic, contrary to the limits given by
-          get_std_bootstrap which are given as a distance from the original sample estimate.
-
-    See get_std_bootstrap docstring for an explanation of the parameters and return values.
+    See get_std_bootstrap docstring for an explanation of the rest of parameters, and of the return values.
     """
 
     if vx is None and vy is None:
@@ -300,7 +303,11 @@ def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, 
     
     original_sample_estimate = error_helpers.apply_function(function=function,vx=vx,vy=vy, R_hat=R_hat, tilt=tilt, absolute=absolute)
 
-    return Result(confidence_interval=res.confidence_interval,
+    conf_inter = res.confidence_interval
+    if CI_as_distance:
+        conf_inter = (original_sample_estimate - conf_inter.low, conf_inter.high - original_sample_estimate)
+
+    return Result(confidence_interval=conf_inter,
                   bootstrap_distribution=res.bootstrap_distribution,
                   standard_error=np.std(res.bootstrap_distribution),
                   bias=np.mean(res.bootstrap_distribution)-original_sample_estimate)
