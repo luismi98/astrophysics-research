@@ -218,33 +218,35 @@ def shall_plot_zero_line(minima,maxima,max_frac=0.1,verbose=False):
     
     return closest_to_zero/max_diff < max_frac
 
-def get_equal_n_minmax_b_ranges(df, n_points=3, extra_variable="R",extra_min=0,extra_max=3.5,depth_var="l",depth_min=-2,depth_max=2,overall_bmin=1.5,overall_bmax=9,verbose=False):
+def get_equal_n_minmax_b_ranges(df, n_points=3, verbose=False):
     """
     Currently written to define the latitude bins along the minor axis for which we are producing the different kinematics vs age/metallicity plots.
+
+    For the latitude ranges in the kinematics vs age/metallicity plot currently in my paper (1.5-3.51, 3.51-6.6, 7.13-8.85) you need:
+    df = MF.apply_cuts_to_df(data, cuts_dict={"FeH":[-1,data["FeH"].max()], "l":[-2,2], "b":[1.5,9], "R":[0,3.5]})
+    n_points = 3
 
     The pencil-beam clusters are hard-coded in.
     """
 
-    df_extra = df[(df[depth_var]>=depth_min)&(df[depth_var]<=depth_max)\
-                    &(df["b"]>=overall_bmin)&(df["b"]<=overall_bmax)\
-                    &(df[extra_variable]>=extra_min)&(df[extra_variable]<=extra_max)]
+    overall_bmax = df["b"].max()
     
-    low_max = np.max(df_extra[df_extra["b"]<6.8]["b"])
+    low_max = np.max(df[df["b"]<6.8]["b"])
     n_points_low = n_points-2 if overall_bmax == 13 else n_points-1
-    edges_low = get_equal_n_bin_edges(df_extra[df_extra["b"]<=low_max].b.values, n_points_low,verbose=verbose)
+    edges_low = get_equal_n_bin_edges(df[df["b"]<=low_max].b.values, n_points_low,verbose=verbose)
 
     o_b_range_min,o_b_range_max = list(edges_low[:-1]), list(edges_low[1:])
 
-    if overall_bmax >= 9: # first cluster
-        high_min = np.min(df_extra[df_extra["b"]>6.8]["b"])
-        high_max = np.max(df_extra[df_extra["b"]<9]["b"])
+    if overall_bmax >= 8: # first cluster
+        high_min = np.min(df[df["b"]>6.8]["b"])
+        high_max = np.max(df[df["b"]<9]["b"])
 
         o_b_range_min += [high_min]
         o_b_range_max += [high_max]
 
-    if overall_bmax >= 13: # second cluster
-        higher_min = np.min(df_extra[df_extra["b"]>9]["b"])
-        higher_max = np.max(df_extra["b"])
+    if overall_bmax >= 12: # second cluster
+        higher_min = np.min(df[df["b"]>9]["b"])
+        higher_max = np.max(df["b"])
 
         o_b_range_min += [higher_min]
         o_b_range_max += [higher_max]
