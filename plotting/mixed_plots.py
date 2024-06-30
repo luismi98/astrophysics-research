@@ -355,11 +355,11 @@ def visualise_1D_binning(value_array, bin_edges_min,bin_edges_max=None, given_ax
         if show_bool:
             plt.show()
 
-def show_text(text):
+def show_text(text, **text_kws):
     fig,ax=plt.subplots(figsize=(0.1,0.1));ax.set_yticks([]);ax.set_xticks([])
     for spine in ['top', 'right',"bottom","left"]:
         ax.spines[spine].set_visible(False)
-    plt.text(x=0,y=0,s=text)
+    plt.text(x=0,y=0,s=text,**text_kws)
 
 def visualise_GC_distances(xymax=3.5,xybins=21,black_contour_level=3.5):
     fig,ax=plt.subplots()
