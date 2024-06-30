@@ -25,6 +25,14 @@ def get_map_string_lists(fractional_errors=False):
 
 ####################################################################################################
 
+def get_kinematic_label(map_string, kinematic_symbol_dict, kinematic_units_dict):
+    label = kinematic_symbol_dict[map_string]
+    
+    if kinematic_units_dict[map_string] != "":
+        label += r"$~[%s]$"%kinematic_units_dict[map_string]
+        
+    return label
+
 def get_symbol(var):
     if var in ["d",]:
         return r"$%s$"%var
@@ -362,7 +370,7 @@ def remove_ticklabel(ax, ticks, axis="y",which="bottom"):
     
     slicing = slice(1,None) if which == "bottom" else slice(None,-1)
 
-    formatted_labels = ["%s"%(np.float32(tick) if str(tick)[0].isdigit() else "−%s"%(str(np.float32(tick))[1:]))
+    formatted_labels = ["%s"%(MF.return_int_or_dec(tick) if str(tick)[0].isdigit() else "−%s"%(str(MF.return_int_or_dec(tick))[1:]))
                         for tick in ticks[slicing]]
     
     formatted_labels = [""]+formatted_labels if which == "bottom" else formatted_labels+[""]
