@@ -34,6 +34,9 @@ def get_function_parameters(func_name, vx, vy, bin_range=None):
         If `tilt` is True, whether the vertex deviation is computed using the absolute value of the dispersion difference.
         Otherwise False.
     """
+
+    vx = np.array(vx) if vx is not None else None
+    vy = np.array(vy) if vy is not None else None
     
     if "spherical" in func_name and bin_range is None:
         raise ValueError("The bin range is needed to compute the spherical tilt.")
