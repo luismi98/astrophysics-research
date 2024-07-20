@@ -88,7 +88,7 @@ def return_int_or_dec_for_array(array,dec=2,extra_dec=0):
     return np.array([return_int_or_dec(val,dec,extra_dec) for val in array])
 
 def return_int_or_dec(val, dec=1, extra_dec=0):
-    if val == 0: return val
+    if val == 0: return int(val)
     
     rounded_val = round(val,dec)
     while rounded_val == 0:
