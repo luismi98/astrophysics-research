@@ -78,8 +78,8 @@ def get_cbar_extend(vmin,vmax, real_vmin, real_vmax):
 def get_ellipse_coords(radius, ratio=1, tilt=0, centre=[0,0], phirange=[-180,180], n_datapoins=200):
     """
     Build ellipse going around the circle with phi from -180 to 180, calculating the values of x and y.
-    The values of x are like in a circle: radius*cos(phi)
-    The values of y are ratio*radius*sin(phi), which makes for the ellipse shape
+    The values of x are like in a circle: radius*cos(phi). 
+    The values of y are ratio*radius*sin(phi), which makes for the ellipse shape. 
     Then rotate the frame by the tilt.
 
     Returns

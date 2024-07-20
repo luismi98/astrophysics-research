@@ -5,14 +5,16 @@ import utils.miscellaneous_functions as MF
 
 def get_map_string_lists(fractional_errors=False):
     full_map_string_list = ["number",\
-                            "mean_vx",          "mean_vx_error_low",        "mean_vx_error_high",\
-                            "mean_vy",          "mean_vy_error_low",        "mean_vy_error_high",\
-                            "std_vx",           "std_vx_error_low",         "std_vx_error_high",\
-                            "std_vy",           "std_vy_error_low",         "std_vy_error_high",\
-                            "anisotropy",       "anisotropy_error_low",     "anisotropy_error_high",\
-                            "correlation",      "correlation_error_low",    "correlation_error_high",\
-                            "tilt_abs",         "tilt_abs_error_low",       "tilt_abs_error_high", \
-                            "spherical_tilt",   "spherical_tilt_error_low", "spherical_tilt_error_high"]
+                            "mean_vx",              "mean_vx_error_low",            "mean_vx_error_high",\
+                            "mean_vy",              "mean_vy_error_low",            "mean_vy_error_high",\
+                            "std_vx",               "std_vx_error_low",             "std_vx_error_high",\
+                            "std_vy",               "std_vy_error_low",             "std_vy_error_high",\
+                            "anisotropy",           "anisotropy_error_low",         "anisotropy_error_high",\
+                            "correlation",          "correlation_error_low",        "correlation_error_high",\
+                            "tilt_abs",             "tilt_abs_error_low",           "tilt_abs_error_high", \
+                            "tilt",                 "tilt_error_low",               "tilt_error_high", \
+                            "spherical_tilt",       "spherical_tilt_error_low",     "spherical_tilt_error_high",
+                            "abs_spherical_tilt",   "abs_spherical_tilt_error_low", "abs_spherical_tilt_error_high"]
 
     if fractional_errors:
         for map_string in full_map_string_list:
@@ -96,9 +98,9 @@ def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable=
     def get_tilt_string(vel_string,absolute=True):
         # 11/01/2023 - I HAVE SWITCHED AROUND THE SYMBOLS
         if vel_string == "rl":
-            return r"$\tilde{l}_{\mathrm{v}}$" if not absolute else r"$l_{\mathrm{v}}$"
+            return "\\tilde{l}_{\mathrm{v}}" if not absolute else "l_{\mathrm{v}}"
         else:
-            return r"$\tilde{l}_{\mathrm{v}}^{%s}$"%(vel_string) if not absolute else r"$l_{\mathrm{v}}^{%s}$"%(vel_string)
+            return "\\tilde{l}_{\mathrm{v}}^{%s}"%(vel_string) if not absolute else "l_{\mathrm{v}}^{%s}"%(vel_string)
 
     spherical_tilt_vel_x = 'R' if x_variable+y_variable == 'xy' else x_variable
     spherical_tilt_vel_y = "\phi" if x_variable+y_variable == 'xy' else y_variable
@@ -109,9 +111,10 @@ def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable=
         "anisotropy" : r"$\beta_{%s}$"%(vel_x_variable+vel_y_variable),
         "std_vx" : r'$\sigma_{%s}$'%vel_x_variable,
         "std_vy" : r'$\sigma_{%s}$'%vel_y_variable,
-        "tilt" : get_tilt_string(vel_x_variable+vel_y_variable,absolute=False),
-        "tilt_abs" : get_tilt_string(vel_x_variable+vel_y_variable),
-        "spherical_tilt" : get_tilt_string(spherical_tilt_vel_x,spherical_tilt_vel_y),
+        "tilt" : r"$%s$"%get_tilt_string(vel_x_variable+vel_y_variable,absolute=False),
+        "tilt_abs" : r"$%s$"%get_tilt_string(vel_x_variable+vel_y_variable),
+        "spherical_tilt" : r"$%s$"%get_tilt_string(spherical_tilt_vel_x+spherical_tilt_vel_y, absolute=False),
+        "abs_spherical_tilt" : r"$\left|%s\right|$"%get_tilt_string(spherical_tilt_vel_x+spherical_tilt_vel_y, absolute=False),
         "correlation" : r"$\rho_{%s %s}$"%(vel_x_variable,vel_y_variable)
     }
 
@@ -149,7 +152,7 @@ def get_kinematic_units_dict(degree_symbol = '^\circ'):
     """
 
     kinematic_units_dict = {}
-    for angular_variable in ["tilt","tilt_abs","spherical_tilt"]:
+    for angular_variable in ["tilt","tilt_abs","spherical_tilt","abs_spherical_tilt"]:
         kinematic_units_dict[angular_variable] = degree_symbol
     for vel_variable in ['mean_vx','mean_vy',"std_vx","std_vy"]:
         kinematic_units_dict[vel_variable] = "\mathrm{km ~ s^{-1}}"

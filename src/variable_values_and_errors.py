@@ -172,6 +172,10 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
         map_dict["tilt_abs"] = CV.calculate_tilt(vx=vx,vy=vy,absolute=True)
         map_dict["tilt_abs_error_low"],map_dict["tilt_abs_error_high"] = get_error(true_value=map_dict["tilt_abs"],function=CV.calculate_tilt,vel_x_var=vel_x_var,vel_y_var=vel_y_var,tilt=True,absolute=True,**common_error_args)
     
+    if "tilt" in full_map_string_list:
+        map_dict["tilt"] = CV.calculate_tilt(vx=vx,vy=vy,absolute=False)
+        map_dict["tilt_error_low"],map_dict["tilt_error_high"] = get_error(true_value=map_dict["tilt"],function=CV.calculate_tilt,vel_x_var=vel_x_var,vel_y_var=vel_y_var,tilt=True,absolute=False,**common_error_args)
+
     if "spherical_tilt" in full_map_string_list:
         vx_s,vy_s = df_vals["v"+x_var].values, df_vals["v"+y_var].values
 
@@ -183,10 +187,6 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
         map_dict["abs_spherical_tilt"] = abs(map_dict["spherical_tilt"])
         map_dict["abs_spherical_tilt_error_low"],map_dict["abs_spherical_tilt_error_high"] =\
               get_error(true_value=map_dict["abs_spherical_tilt"],function=CV.calculate_spherical_tilt,vel_x_var=x_var,vel_y_var=y_var,absolute=True,R_hat=R_hat, **common_error_args)
-
-    if "tilt" in full_map_string_list:
-        map_dict["tilt"] = CV.calculate_tilt(vx=vx,vy=vy,absolute=False)
-        map_dict["tilt_error"] = get_error(true_value=map_dict["tilt"],function=CV.calculate_tilt, vel_x_var=vel_x_var,vel_y_var=vel_y_var, tilt=True,absolute=False, **common_error_args)        
 
     compute_fractional_errors(map_dict,full_map_string_list)
 
