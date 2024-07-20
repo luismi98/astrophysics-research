@@ -82,7 +82,7 @@ def get_std_bootstrap(function, config, vx=None, vy=None, tilt=False, absolute=T
     central_value = np.mean(boot_values) if config.from_mean else original_sample_estimate
 
     if tilt and not absolute:
-        error_helpers.correct_tilt_branch(boot_values, central_value)
+        error_helpers.correct_tilt_branch(boot_values, central_value, inplace=True)
 
     CI_low, CI_high = error_helpers.build_confidence_interval(boot_values, central_value, symmetric=config.symmetric)
 
