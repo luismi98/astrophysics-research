@@ -248,6 +248,10 @@ def apply_cuts_to_df(df,cuts_dict,lims_dict=None):
     lims_dict: dictionary, or list of dictionaries
         Key-value pairs: string (variable) and string (defining the limits to include in the selection: "neither", "min", "max" or both").
         Defaults to "both" for any cut whose lim is not specified.
+
+    Returns
+    -------
+    df: dataframe after the applied cuts
     """
     
     if isinstance(cuts_dict,list):

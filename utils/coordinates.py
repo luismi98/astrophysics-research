@@ -10,14 +10,14 @@ def ang_to_rect_1D(ang,d=None,x=None):
     ang: float
         The value of an angular variable, "l" or "b", in degrees.
     d: float, optional
-        Distance from Sun. Must be given if x is None.
+        Distance from Sun, in kpc. Must be given if x is None.
     x: float, optional
-        Heliocentric rectangular coordinate growing in the direction from the Sun (x=0) to the GC (x=R0).
+        Heliocentric rectangular coordinate growing in the direction from the Sun (x=0) to the GC (x=R0), in kpc.
 
     Returns
     -------
     rect: float
-        The rectangular coordinate corresponding to the angular coordinate given.
+        The rectangular coordinate corresponding to the angular coordinate given, in kpc.
     """
     if (d is None) + (x is None) != 1:
         raise ValueError("Give a value for `d` or `x` (but not both).")
@@ -31,11 +31,11 @@ def rect_to_ang_1D(rect,d=None,x=None):
     Parameters
     ----------
     rect: float
-        The value of a rectangular variable, "y" or "z", in degrees.
+        The value of a rectangular variable, "y" or "z", in kpc.
     d: float, optional
-        Distance from Sun. Must be given if x is None.
+        Distance from Sun, in kpc. Must be given if x is None.
     x: float, optional
-       Heliocentric rectangular coordinate growing in the direction from the Sun (x=0) to the GC (x=R0)
+       Heliocentric rectangular coordinate growing in the direction from the Sun (x=0) to the GC (x=R0), in kpc.
 
     Returns
     -------

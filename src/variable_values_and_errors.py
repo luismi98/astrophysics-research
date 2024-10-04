@@ -39,15 +39,39 @@ def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,mo
             vy = df["v"+vel_y_var].values
 
         if bootstrapconfig.scipy:
-            result = bootstrap.scipy_bootstrap(function=function,repeats=bootstrapconfig.repeats,vx=vx,vy=vy,tilt=tilt,absolute=absolute,R_hat=R_hat,CI_as_distance=True)
+            result = bootstrap.scipy_bootstrap(
+                function=function,
+                repeats=bootstrapconfig.repeats,
+                scipy_method=bootstrapconfig.scipy_method,
+                vy=vy,
+                tilt=tilt,
+                absolute=absolute,
+                R_hat=R_hat,
+                CI_as_distance=True
+            )
         else:
-            result = bootstrap.get_std_bootstrap(function=function, vx=vx, vy=vy, tilt=tilt, absolute=absolute, R_hat=R_hat,config=bootstrapconfig)
+            result = bootstrap.get_std_bootstrap(
+                function=function,
+                vx=vx,
+                vy=vy,
+                tilt=tilt,
+                absolute=absolute,
+                R_hat=R_hat,
+                config=bootstrapconfig
+            )
 
         return result.confidence_interval
     
     elif error_type == "MC":
-        std_low,std_high,*_ = montecarlo.get_std_MC(df=df, true_value=true_value,function=function, montecarloconfig=montecarloconfig, vel_x_var=vel_x_var, vel_y_var=vel_y_var, \
-                                         tilt=tilt, absolute=absolute, R_hat=R_hat)
+        std_low,std_high,*_ = montecarlo.get_std_MC(df=df,
+                                                    true_value=true_value,
+                                                    function=function,
+                                                    montecarloconfig=montecarloconfig,
+                                                    vel_x_var=vel_x_var,
+                                                    vel_y_var=vel_y_var,
+                                                    tilt=tilt,
+                                                    absolute=absolute,
+                                                    R_hat=R_hat)
         
         return std_low,std_high
     
