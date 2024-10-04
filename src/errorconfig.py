@@ -1,12 +1,13 @@
 
 class BootstrapConfig():
-    def __init__(self, scipy=False, repeats=5000, sample_size=None, replace=True, symmetric=True, from_mean=False):
+    def __init__(self, scipy=False, repeats=5000, sample_size=None, replace=True, symmetric=True, from_mean=False, scipy_method="BCa"):
         """
         Parameters
         ----------
         scipy: boolean, optional. Default is False.
-            Whether to compute BCa (bias-corrected and accelerated) bootstrap from scipy.
-        
+            Whether to use the scipy.bootstrap method.
+        scipy_method: str, optional. Default is "BCa".
+            Method to compute the confidence interval if `scipy` is True. One of "BCa", "basic", or "percentile".
         sample_size: int, optional
             Size of each bootstrap sample. For proper bootstrapping it should be the same as the original sample size (see e.g. https://stats.stackexchange.com/questions/263710).
             The default behaviour, i.e. when `sample_size` is set to None, is to use the original sample size.
@@ -22,9 +23,10 @@ class BootstrapConfig():
             Only takes effect if bca_scipy is False.
         from_mean: boolean, optional. Default is False.
             Whether the confidence interval should be computed around the mean. If False, it is computed from the original sample estimate.
-            Only takes effect if bca_scipy is False.
+            Only takes effect if `scipy` is False.
         """
         self.scipy = scipy
+        self.scipy_method = scipy_method
         self.repeats = repeats
         self.replace = replace
         self.sample_size = sample_size

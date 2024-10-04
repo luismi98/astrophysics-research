@@ -236,7 +236,7 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
     central_value = np.mean(sampling_values) if config.from_mean else true_value
 
     if tilt and not absolute:
-        error_helpers.correct_tilt_branch(sampling_values, central_value)
+        error_helpers.correct_tilt_branch(sampling_values, central_value, inplace=True)
 
     CI_low, CI_high = error_helpers.build_confidence_interval(sampling_values, central_value, symmetric=config.symmetric)
 
@@ -251,13 +251,14 @@ def get_std_bootstrap_recursive(function,config,nested_config=None,vx=None,vy=No
                   bias = np.mean(sampling_values) - true_value,
                   bootstrap_biases = bootstrap_biases)
 
-def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, tilt=False,absolute=False,R_hat=None,batch_size=500,CI_as_distance=False):
+def scipy_bootstrap(function, repeats, method="percentile", confidence_level=0.68, vx=None, vy=None, tilt=False,absolute=False,R_hat=None,batch_size=500,CI_as_distance=False):
     """
-    Apply the BCa (bias-corrected and accelerated) bootstrap method, using `stats.scipy.bootstrap`.
-    This method takes into account both bias and skew when computing the confidence interval.
+    Apply bootstrap using `stats.scipy.bootstrap`.
     
     Parameters
     ----------
+    method: str, optional. Default is "percentile".
+        Method to compute the confidence interval. One of "BCa", "basic", or "percentile".
     CI_as_distance: boolean, optional. Default is False.
         If True, give the low/high limits of the confidence interval are given as a distance from the original sample estimate, to make it
         consistent with get_std_bootstrap. Otherwise, the low/high limits are given as values of the statistic.
@@ -277,27 +278,21 @@ def scipy_bootstrap(function, repeats, confidence_level=0.68, vx=None, vy=None, 
                 n_resamples=repeats,
                 paired=True,
                 confidence_level=confidence_level,
-                method="BCa",
+                method=method,
                 vectorized=False,
                 batch=batch_size # Even if vectorised=False this is still needed otherwise for samples of ~10^5 stars it crashes on me
             )
     else:
-        if vx is None:
-            v = vy
-        elif vy is None:
-            v = vx
-
         res = stats.bootstrap(
-                data=(v,),
+                data=(vx if vy is None else vy,),
                 statistic=function, # single-component functions are mean and std, which do not require keyword arguments
                 n_resamples=repeats,
                 paired=True,
                 confidence_level=confidence_level,
-                method="BCa",
+                method=method,
                 vectorized=False,
-                batch=batch_size # Even if vectorised=False this is still needed otherwise for samples of ~10^5 stars it crashes on me
+                batch=batch_size
             )
-        
     
     Result = namedtuple("Result", ["confidence_interval", "bootstrap_distribution", "standard_error", "bias"])
     
