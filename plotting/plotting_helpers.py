@@ -232,8 +232,8 @@ def get_equal_n_minmax_b_ranges(df, n_points=3, verbose=False):
     overall_bmax = df["b"].max()
     
     low_max = np.max(df[df["b"]<6.8]["b"])
-    n_points_low = n_points-2 if overall_bmax == 13 else n_points-1
-    edges_low = get_equal_n_bin_edges(df[df["b"]<=low_max].b.values, n_points_low,verbose=verbose)
+    n_points_low = n_points-2 if overall_bmax >= 12 else n_points-1
+    edges_low = get_equal_n_bin_edges(df[df["b"]<=low_max].b.values, n_points_low, verbose=verbose)
 
     o_b_range_min,o_b_range_max = list(edges_low[:-1]), list(edges_low[1:])
 
@@ -246,15 +246,12 @@ def get_equal_n_minmax_b_ranges(df, n_points=3, verbose=False):
 
     if overall_bmax >= 12: # second cluster
         higher_min = np.min(df[df["b"]>9]["b"])
-        higher_max = np.max(df["b"])
+        higher_max = overall_bmax
 
         o_b_range_min += [higher_min]
         o_b_range_max += [higher_max]
 
-    o_b_range_min = np.array(o_b_range_min)
-    o_b_range_max = np.array(o_b_range_max)
-
-    return o_b_range_min,o_b_range_max
+    return np.array(o_b_range_min), np.array(o_b_range_max)
 
 def get_plot_values_from_hist(h,normalised=False):
     x = h[1]

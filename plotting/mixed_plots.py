@@ -329,7 +329,7 @@ def visualise_1D_binning(value_array, bin_edges_min,bin_edges_max=None, given_ax
     
     if bin_edges_max is not None:
         for edge in bin_edges_max:
-            ax.axvline(x=edge,color="blue")
+            ax.axvline(x=edge,color="blue", alpha=0.5)
     
     major_tick_locator = MF.round_one_significant(MF.return_int_or_dec(max(value_array)-min(value_array)))//10
     if major_tick_locator == 0: major_tick_locator = 0.5
