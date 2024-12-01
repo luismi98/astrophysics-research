@@ -602,3 +602,46 @@ def illustrate_phi_estimation_from_lR(l=11, R=3.5, R0=coordinates.get_solar_radi
 
     ax.set_aspect("equal")
     plt.show()
+
+def plot_2d_hist(df, xvar, yvar, ax=None, aspect="auto", cmap="coolwarm", norm=None, bins=90, cbar=True, show_bool=True, save_bool=False, save_path="", zorder=1):
+    
+    given_ax = ax
+    
+    if given_ax is None:    
+        _, ax = plt.subplots()
+    
+    if norm is None:
+        norm = LogNorm()
+
+    h = np.histogram2d(df[xvar],df[yvar], bins=bins)
+    im = ax.imshow(h[0].T,origin="lower",norm=norm,cmap=cmap, zorder=zorder,extent=[df[xvar].min(),df[xvar].max(),df[yvar].min(),df[yvar].max()])
+
+    ax.set_aspect(aspect)
+
+    if cbar:
+        cbar = plt.colorbar(im)
+        cbar.set_label(r"$N$")
+
+    ax.set(xlabel=mapf.get_label(xvar), ylabel=mapf.get_label(yvar))
+
+    if df[yvar].min() < 0:
+        ax.axhline(y=0,color="grey",linestyle="--")
+    
+    if given_ax is None:
+        if show_bool:
+            plt.show()
+        else:
+            return ax
+
+        if save_bool:
+            print(f"Saving in {save_path}")
+
+            filename = f"hist2d_{xvar}_{yvar}"
+            filename += f"_{cmap}" if cmap != "coolwarm" else ""
+            filename += "_cbar" if cbar else ""
+
+            for fileformat in [".png",".pdf"]:
+                plt.savefig(save_path+filename+fileformat, bbox_inches="tight", dpi=200)
+                print(fileformat)
+    else:
+        return h, im
