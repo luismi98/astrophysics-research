@@ -180,11 +180,12 @@ def add_galactic_pm_from_vel(df):
         df[pm] /= coordinates.get_conversion_mas_to_rad() # mas/s
         df[pm] *= coordinates.get_conversion_yr_to_s() # mas/yr
 
-def apply_MC(df, var, error_frac, inplace=True, seed=42):
+def apply_MC(df, var, error_frac, inplace=True, seed=None):
     if error_frac is None and var+"_error" not in df:
         raise ValueError(f"`{var}_error` was not found in the dataframe and error_frac is None. Please specify the errors.")
     
-    np.random.seed(seed)
+    if seed:
+        np.random.seed(seed)
 
     error = error_frac * np.abs(df[var]) if error_frac is not None else df[var+"_error"]
 
