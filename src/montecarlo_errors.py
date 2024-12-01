@@ -1,13 +1,14 @@
 import numpy as np
 import copy
+import pandas as pd
 from collections import namedtuple
 
-from plotting.velocity_plot import velocity_plot
 import utils.coordinates as coordinates
 import utils.miscellaneous_functions as MF
 import utils.error_helpers as error_helpers
+from src.errorconfig import MonteCarloConfig
 
-def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None, show_vel_plots=False, show_freq=10, velocity_kws={}):
+def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=False, absolute=True, R_hat=None):
     """
     Compute a Monte Carlo error in the statistical variable of interest given individual uncertainties (one for each star), like so:
         1. Given each star, take the value of the variable to be perturbed and add to it a number extracted from a Gaussian of mean 0 and standard
@@ -40,12 +41,6 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
         Whether the tilt uses the absolute value of the dispersion difference. Only has effect if tilt is True.
     R_hat: tuple, optional. Default is None.
         If a tuple, the statistic of interest is a spherical tilt, and R_hat indicates the 2D coordinates of the center of the bin of selected stars.
-    show_vel_plots: boolean
-        Whether to show a velocity plot of the stars after the perturbation.
-    show_freq: integer
-        Show a velocity plot every show_freq MC repetitions. Only has effect if show_vel_plots is True.
-    velocity_kws: dictionary
-        Keyword arguments for the velocity plot function.
 
     Returns
     -------
@@ -57,7 +52,21 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
             NumPy array containing all the MC values.
         bias: float
             The difference between the mean of the MC distribution and the true value.
-        within_cut: array
+    """
+
+    MC_vx_values, MC_vy_values, within_cut = get_MC_perturbed_velocities(df, config, vel_x_var, vel_y_var)
+
+    Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
+
+    stats_result = get_MC_distribution_stats(true_value, MC_vx_values, MC_vy_values, function, config, tilt, absolute, R_hat)
+
+    return Result(
+        confidence_interval=stats_result.confidence_interval, MC_distribution=stats_result.MC_distribution, bias=stats_result.bias, within_cut=within_cut
+    )
+
+def get_MC_perturbed_velocities(df:pd.DataFrame, config: MonteCarloConfig, vel_x_var: str = None, vel_y_var:str = None):
+    """
+    within_cut: array
             NumPy boolean array flagging the stars which, after the last perturbation, fell within the `config.affected_cuts_dict`
     """
 
@@ -68,10 +77,11 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
     if len(config.perturbed_vars) == 0:
         raise ValueError("The list of config.perturbed_vars was empty!")
     
-    df = add_any_needed_variables_to_df(df, config.perturbed_vars)
+    df = add_any_needed_variables_to_df(df, config.perturbed_vars, inplace=False)
+
+    MC_vx_values, MC_vy_values = [],[]
 
     within_cut = None
-    MC_values = np.empty(shape=(config.repeats))
 
     for i in range(config.repeats):
 
@@ -115,19 +125,30 @@ def get_std_MC(df,true_value,function,config,vel_x_var=None,vel_y_var=None,tilt=
 
         MC_vx, MC_vy = extract_velocities_after_MC(df_helper, config.perturbed_vars, vel_x_var, vel_y_var)
 
-        if vel_x_var is not None and vel_y_var is not None and show_vel_plots and i%show_freq == 0:
-            velocity_plot(MC_vx,MC_vy,**velocity_kws)
+        MC_vx_values.append(MC_vx)
+        MC_vy_values.append(MC_vy)
+    
+    return MC_vx_values, MC_vy_values, within_cut
 
-        MC_values[i] = error_helpers.apply_function(function=function,vx=MC_vx,vy=MC_vy,R_hat=R_hat,tilt=tilt,absolute=absolute)
+def get_MC_distribution_stats(true_value, MC_vx_values, MC_vy_values, function, config, tilt=False, absolute=True, R_hat=None):
+
+    MC_values = np.empty(shape=(config.repeats))
+
+    for i in range(config.repeats):
+        MC_values[i] = error_helpers.apply_function(function=function,vx=MC_vx_values[i],vy=MC_vy_values[i],R_hat=R_hat,tilt=tilt,absolute=absolute)
 
     if tilt and not absolute:
         error_helpers.correct_tilt_branch(MC_values, true_value)
 
-    CI_low, CI_high = error_helpers.build_confidence_interval(MC_values, true_value, symmetric=config.symmetric)
+    if true_value is None:
+        CI_low, CI_high, bias = None, None, None
+    else:
+        CI_low, CI_high = error_helpers.build_confidence_interval(MC_values, true_value, symmetric=config.symmetric)
+        bias = np.mean(MC_values)-true_value
 
-    Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias", "within_cut"])
-    
-    return Result(confidence_interval=(CI_low,CI_high), MC_distribution=MC_values, bias=np.mean(MC_values)-true_value, within_cut=within_cut)
+    Result = namedtuple("Result", ["confidence_interval", "MC_distribution", "bias"])
+
+    return Result(confidence_interval=(CI_low,CI_high), MC_distribution=MC_values, bias=bias)
 
 """############################################# HELPER FUNCTIONS ####################################################"""
 
@@ -147,7 +168,8 @@ def add_any_needed_variables_to_df(df, perturbed_vars, inplace=False):
         if "ra" not in df or "dec" not in df:
             coordinates.lb_to_radec(df)
 
-    return df
+    if not inplace:
+        return df
 
 def add_galactic_pm_from_vel(df):
     df["pmlcosb"] = df["vl"]/df["d"] # km/(s*kpc)
@@ -158,24 +180,34 @@ def add_galactic_pm_from_vel(df):
         df[pm] /= coordinates.get_conversion_mas_to_rad() # mas/s
         df[pm] *= coordinates.get_conversion_yr_to_s() # mas/yr
 
-def apply_MC(df, var, error_frac):
+def apply_MC(df, var, error_frac, inplace=True, seed=42):
     if error_frac is None and var+"_error" not in df:
         raise ValueError(f"`{var}_error` was not found in the dataframe and error_frac is None. Please specify the errors.")
+    
+    np.random.seed(seed)
 
     error = error_frac * np.abs(df[var]) if error_frac is not None else df[var+"_error"]
 
-    df[var] += np.random.normal(scale=error)
+    if inplace:
+        df[var] += np.random.normal(scale=error)
+    else:
+        df = df.copy()
+        df[var] += np.random.normal(scale=error)
+        return df
 
-def build_within_cut_boolean_array(df, affected_cuts_dict, affected_cuts_lims_dict):
+def build_within_cut_boolean_array(df, affected_cuts_dict, affected_cuts_lims_dict=None):
     if len(affected_cuts_dict) == 0:
         return None
     if len(affected_cuts_dict) > 1:
         raise ValueError(f"Expected a single spatial cut to be affected but found `{len(affected_cuts_dict)}`, namely `{affected_cuts_dict}`.")
+    if affected_cuts_lims_dict is None:
+        affected_cuts_lims_dict = {key:"both" for key in affected_cuts_dict}
 
     if "R" in affected_cuts_dict:
         coordinates.lbd_to_xyz(df)
+        coordinates.xyz_to_Rphiz(df)
 
-        return MF.build_lessgtr_condition(array=np.hypot(df["x"],df["y"]), low=affected_cuts_dict["R"][0], high=affected_cuts_dict["R"][1],
+        return MF.build_lessgtr_condition(array=df["R"], low=affected_cuts_dict["R"][0], high=affected_cuts_dict["R"][1],
                                           include=affected_cuts_lims_dict["R"])
     
     elif "d" in affected_cuts_dict:
@@ -185,10 +217,16 @@ def build_within_cut_boolean_array(df, affected_cuts_dict, affected_cuts_lims_di
     else:
         raise ValueError(f"Unexpected spatial cut `{affected_cuts_dict}`.")
 
-def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None):
+def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None, inplace=False):
+    if vel_x_var is None and vel_y_var is None:
+        raise ValueError("Both velocity components were set to None!")
+
     unexpected_perturbed_vars = [v for v in perturbed_vars if v not in ["pmra","pmdec","d","vr"]]
     if len(unexpected_perturbed_vars) > 0:
         raise ValueError(f"Got some unexpected perturbed variables: `{unexpected_perturbed_vars}`")
+    
+    if not inplace:
+        df = df.copy()
     
     if "pmra" in perturbed_vars or "pmdec" in perturbed_vars:
         coordinates.pmrapmdec_to_pmlpmb(df)
@@ -210,4 +248,4 @@ def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=No
         else:
             raise ValueError(f"Velocity extraction undefined for vel_y_var `{vel_y_var}`.")
 
-    return MC_vx,MC_vy
+    return MC_vx, MC_vy
