@@ -42,7 +42,8 @@ def get_error(df,true_value,function,error_type,vel_x_var=None,vel_y_var=None,mo
             result = bootstrap.scipy_bootstrap(
                 function=function,
                 repeats=bootstrapconfig.repeats,
-                scipy_method=bootstrapconfig.scipy_method,
+                method=bootstrapconfig.scipy_method,
+                vx=vx,
                 vy=vy,
                 tilt=tilt,
                 absolute=absolute,
@@ -142,11 +143,9 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
     if df_errors is None:
         df_errors = df_vals
 
-    vx,vy = df_vals["v"+vel_x_var].values, df_vals["v"+vel_y_var].values
-
     map_dict = {}
 
-    number = len(vx)
+    number = len(df_vals)
 
     if "number" in full_map_string_list:
         map_dict["number"] = number
@@ -167,6 +166,8 @@ def get_all_variable_values_and_errors(df_vals,vel_x_var,vel_y_var,full_map_stri
         "montecarloconfig": montecarloconfig,
         "bootstrapconfig": bootstrapconfig
     }
+
+    vx,vy = df_vals["v"+vel_x_var].values, df_vals["v"+vel_y_var].values
     
     if "mean_vx" in full_map_string_list:
         map_dict["mean_vx"] = np.mean(vx)

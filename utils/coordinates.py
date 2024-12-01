@@ -49,14 +49,14 @@ def rect_to_ang_1D(rect,d=None,x=None):
 
 def get_phi_from_lR(l,R, R0=8.1, return_d=False):
     """
-    Given a line-of-sight (from the Sun) of a certain longitude, calculate the angle phi such that a rod of length R with a tip at the GC 
-    would have the other tip ending at that line-of-sight.
+    Given a line-of-sight `l` (from the Sun) of a certain longitude, calculate the angle phi such that a rod of length `R` with a tip at the GC 
+    would have the other tip ending at that line-of-sight. This is all in the face-on projection (no z or b).
 
     If `return_d`, it returns the distance from the Sun at which the crossing happens.
     
     See plotting.mixed_plots.illustrate_phi_estimation_from_lR for an illustration
 
-    Note there are always 2 solutions. One in the 1st quadrant, the other in the 2nd.
+    Note for bulge values of `l` there are always 2 solutions. One in the 1st quadrant, the other in the 2nd.
     """
     
     sinl,cosl = np.sin(np.radians(l)), np.cos(np.radians(l))
@@ -143,6 +143,11 @@ def convert_pm_to_velocity(distance, pm, kpc_bool=True, masyr_bool=True):
         Distance in kpc if kpc_bool, otherwise in km
     pm: float array
         Proper motion in mas/yr if masyr_bool, otherwise in rad/s
+
+    Returns
+    -------
+    velocity: float array
+        Velocity in km/s
     """
 
     velocity = distance * pm
