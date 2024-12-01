@@ -3,6 +3,8 @@ from scipy.ndimage import gaussian_filter
 
 import utils.miscellaneous_functions as MF
 
+UPEPSILON="ϵ" # using the symbol directly as it doesn't detect \upepsilon
+
 def get_map_string_lists(fractional_errors=False):
     full_map_string_list = ["number",\
                             "mean_vx",              "mean_vx_error_low",            "mean_vx_error_high",\
@@ -36,34 +38,40 @@ def get_kinematic_label(map_string, kinematic_symbol_dict, kinematic_units_dict)
     return label
 
 def get_symbol(var):
-    if var in ["d",]:
+    if var in ["d","x","y","z","l","b","R","\phi"]:
         return r"$%s$"%var
+    elif var == "age":
+        return "Age"
     elif var == "FeH":
         return "[Fe/H]"
     elif var == "vr":
         return r"$v_r$"
+    elif var == "vl":
+        return r"$v_l$"
     elif var == "pmra":
         return r"$\mu_{\alpha}$"
     elif var == "pmdec":
         return r"$\mu_{\delta}$"
     elif "_error" in var:
-        return r"ϵ$($"+get_symbol(var.removesuffix("_error"))+r"$)$"
+        return r"%s$($"%UPEPSILON + get_symbol(var.removesuffix("_error")) + r"$)$"
     elif "_fractionalerror" in var:
         var_symbol = get_symbol(var.removesuffix("_fractionalerror")).removeprefix('$').removesuffix('$')
-        return r"ϵ$($" + var_symbol + r"$)/|$" + var_symbol + r"$|$"
+        return r"%s$($"%UPEPSILON + var_symbol + r"$)/|$" + var_symbol + r"$|$"
     else:
         raise ValueError(f"Variable `{var}` not recognised")
     
 def get_units(var):
-    if var in ["d","R"]:
+    if var in ["d","R","x","y","z"]:
         return "kpc"
+    elif var in ["age"]:
+        return "Gyr"
     elif var in ["FeH","correlation","anisotropy"]:
         return ""
     elif var in ["pmra","pmdec","pmlcosb","pml","pmb"]:
         return "mas/yr"
     elif var in ["vr","vl","vb","vx","vy","vz","vR","vphi","vM","vm"]:
-        return "km/s"
-    elif var in ["tilt_abs","tilt","vertex","vertex_abs"]:
+        return r"$\mathrm{km}~\mathrm{s}^{-1}$"
+    elif var in ["l","b","tilt_abs","tilt","vertex","vertex_abs"]:
         return r"$^\circ$"
     elif "_error" in var:
         return get_units(var.removesuffix("_error"))
@@ -71,6 +79,9 @@ def get_units(var):
         return ""
     else:
         raise ValueError(f"Variable `{var}` not recognised")
+    
+def get_label(var):
+    return "%s [%s]"%(get_symbol(var), get_units(var))
 
 def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable="l",y_variable="b",diff=False):
     """
@@ -121,10 +132,10 @@ def get_kinematic_symbols_dict(vel_x_variable="r",vel_y_variable="l",x_variable=
     kinematic_variables_for_error = ["tilt","tilt_abs","spherical_tilt","anisotropy","correlation"]
     for map_string in kinematic_variables_for_error:
         variable_symbol = kinematic_symbol_dict[map_string].replace('$','')
-        kinematic_symbol_dict[map_string+"_error"] = r"ϵ$(%s)$"%variable_symbol # using the symbol directly as it doesn't detect \upepsilon
+        kinematic_symbol_dict[map_string+"_error"] = r"%s$(%s)$"%(UPEPSILON, variable_symbol)
         kinematic_symbol_dict[map_string+"_error_low"] = kinematic_symbol_dict[map_string+"_error"]
         kinematic_symbol_dict[map_string+"_error_high"] = kinematic_symbol_dict[map_string+"_error"]
-        kinematic_symbol_dict[map_string+"_fractionalerror"] = r"ϵ$(%s)/|%s|$"%(variable_symbol,variable_symbol)
+        kinematic_symbol_dict[map_string+"_fractionalerror"] = r"%s$(%s)/|%s|$"%(UPEPSILON,variable_symbol,variable_symbol)
     
     if diff:
         kinematic_symbol_diff_dict = {}
@@ -269,7 +280,7 @@ def get_map_tick_range(vmin,vmax,step,include_lims=True,verbose=False):
         ticks = ticks[1:]
     
     if verbose:
-        print(f"vmin:{vmin}\nvmax:{vmax}\nstep:{step}\nmax_tick:{max_tick}\npos_ticks:{pos_ticks}\nmin_tick:{min_tick}\nneg_ticks{neg_ticks}\nall_ticks{ticks}")
+        print(f"vmin:{vmin}\nvmax:{vmax}\nstep:{step}\nmax_tick:{max_tick}\npos_ticks:{pos_ticks}\nmin_tick:{min_tick}\nneg_ticks:{neg_ticks}\nall_ticks:{ticks}")
 
     return ticks.tolist()
 
