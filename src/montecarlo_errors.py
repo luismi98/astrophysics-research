@@ -219,7 +219,7 @@ def build_within_cut_boolean_array(df, affected_cuts_dict, affected_cuts_lims_di
         raise ValueError(f"Unexpected spatial cut `{affected_cuts_dict}`.")
 
 def extract_velocities_after_MC(df, perturbed_vars, vel_x_var=None, vel_y_var=None, inplace=False):
-    if vel_x_var is None and vel_y_var is None:
+    if not inplace and vel_x_var is None and vel_y_var is None:
         raise ValueError("Both velocity components were set to None!")
 
     unexpected_perturbed_vars = [v for v in perturbed_vars if v not in ["pmra","pmdec","d","vr"]]
